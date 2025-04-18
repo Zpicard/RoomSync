@@ -1,17 +1,16 @@
-import { ChakraProvider } from '@chakra-ui/react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import Home from './pages/Home'
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
+import AppRoutes from './routes';
 
-function App() {
+const App: React.FC = () => {
   return (
-    <ChakraProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Home />} />
-        </Routes>
-      </Router>
-    </ChakraProvider>
-  )
-}
+    <ThemeProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </ThemeProvider>
+  );
+};
 
-export default App 
+export default App;
