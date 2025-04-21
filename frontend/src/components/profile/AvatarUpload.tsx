@@ -12,16 +12,17 @@ const AvatarUpload: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!avatarUrl.trim()) {
-      toast.error('Please select an avatar');
-      return;
-    }
-
+    
     setLoading(true);
     try {
       const response = await user.updateAvatar(avatarUrl.trim());
-      updateUser(response.data as User);
-      toast.success('Avatar updated successfully!');
+      const userData = response.data as Partial<User>;
+      // Preserve the householdId when updating the user
+      updateUser({
+        ...userData,
+        householdId: currentUser?.householdId
+      } as User);
+      toast.success(avatarUrl.trim() ? 'Avatar updated successfully!' : 'Avatar removed successfully!');
     } catch (error: any) {
       console.error('Error updating avatar:', error);
       toast.error(error.response?.data?.message || 'Failed to update avatar');
@@ -70,7 +71,12 @@ const AvatarUpload: React.FC = () => {
                 setLoading(true);
                 try {
                   const response = await user.updateAvatar('');
-                  updateUser(response.data as User);
+                  const userData = response.data as Partial<User>;
+                  // Preserve the householdId when removing the avatar
+                  updateUser({
+                    ...userData,
+                    householdId: currentUser?.householdId
+                  } as User);
                   setAvatarUrl('');
                   toast.success('Avatar removed successfully!');
                 } catch (error: any) {

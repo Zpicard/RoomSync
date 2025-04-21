@@ -254,9 +254,20 @@ export const getHouseholdDetails = async (req: AuthRequest, res: Response) => {
 
     const household = await prisma.household.findUnique({
       where: { id: householdId },
-      include: {
-        members: true,
-        owner: true
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        isPrivate: true,
+        ownerId: true,
+        members: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            avatarUrl: true
+          }
+        }
       }
     });
 
@@ -270,18 +281,7 @@ export const getHouseholdDetails = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'You are not a member of this household' });
     }
 
-    res.json({
-      id: household.id,
-      name: household.name,
-      code: household.code,
-      isPrivate: household.isPrivate,
-      ownerId: household.ownerId,
-      members: household.members.map(member => ({
-        id: member.id,
-        username: member.username,
-        email: member.email
-      }))
-    });
+    res.json(household);
   } catch (error) {
     console.error('Error fetching household details:', error);
     res.status(500).json({ message: 'Error fetching household details' });

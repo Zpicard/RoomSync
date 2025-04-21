@@ -4,9 +4,10 @@ import { PrismaClient, User, Household } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-interface AuthRequest extends Request {
-  user?: User & {
-    household?: Household | null;
+export interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
   };
 }
 

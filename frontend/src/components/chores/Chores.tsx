@@ -24,14 +24,14 @@ interface Task {
   createdAt: string;
   updatedAt: string;
   assignedTo?: {
-  id: string;
-  name: string;
+    id: string;
+    username: string;
   };
 }
 
 interface User {
   id: string;
-  name: string;
+  username: string;
   email: string;
 }
 
@@ -100,7 +100,7 @@ const Chores: React.FC = () => {
         if (!currentUserExists && user.id) {
           allMembers.push({
             id: user.id,
-            name: user.username || user.email,
+            username: user.username || user.email,
             email: user.email
           });
         }
@@ -351,13 +351,11 @@ const Chores: React.FC = () => {
                       Due: {formatDate(task.dueDate)}
                     </span>
                   </div>
-                  {task.assignedTo && (
-                    <div className="mt-2">
-                      <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                        Assigned to: {task.assignedTo.name}
-                      </span>
-                    </div>
-                  )}
+                  <div className="mt-2">
+                    <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                      {task.assignedTo ? `Assigned to: ${task.assignedTo.username}` : 'Unassigned'}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex flex-col items-end space-y-2">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
@@ -441,7 +439,7 @@ const Chores: React.FC = () => {
                   <option value="">Select a roommate</option>
                   {roommates.map((roommate) => (
                     <option key={roommate.id} value={roommate.id}>
-                      {roommate.name} {roommate.id === user?.id ? '(You)' : ''}
+                      {roommate.username} {roommate.id === user?.id ? '(You)' : ''}
                     </option>
                   ))}
                 </select>

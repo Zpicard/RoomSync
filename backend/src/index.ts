@@ -7,6 +7,7 @@ import householdRoutes from './routes/household.routes';
 import taskRoutes from './routes/task.routes';
 import guestRoutes from './routes/guest.routes';
 import profileRoutes from './routes/profile.routes';
+import quietTimeRoutes from './routes/quiet-time.routes';
 import path from 'path';
 import dotenv from 'dotenv';
 
@@ -35,6 +36,7 @@ app.use('/api/households', householdRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/guests', guestRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/quiet-times', quietTimeRoutes);
 
 // Error handling
 app.use(errorHandler);

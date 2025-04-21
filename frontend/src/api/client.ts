@@ -126,9 +126,26 @@ export const guests = {
 
 export const user = {
   updateAvatar: (avatarUrl: string) =>
-    apiClient.patch('/users/avatar', { avatarUrl }),
+    apiClient.patch('/profile/avatar', { avatarUrl }),
   getProfile: () =>
     apiClient.get('/users/profile'),
+};
+
+export const quietTimes = {
+  create: (data: {
+    title: string;
+    type: 'exam' | 'study' | 'quiet';
+    startTime: string;
+    endTime: string;
+    description?: string;
+    householdId: string;
+  }) => apiClient.post('/quiet-times', data),
+  
+  getHouseholdQuietTimes: (householdId: string) =>
+    apiClient.get(`/quiet-times/household/${householdId}`),
+    
+  delete: (quietTimeId: string) =>
+    apiClient.delete(`/quiet-times/${quietTimeId}`),
 };
 
 export default apiClient; 
