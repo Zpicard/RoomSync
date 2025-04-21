@@ -1,13 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth } from '../api/client';
 import { useNavigate } from 'react-router-dom';
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  householdId?: string;
-}
+import { User } from '../types/user';
 
 interface AuthResponse {
   token: string;
@@ -23,6 +17,7 @@ interface AuthContextType {
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   updateUser: (updatedUser: User) => void;
+  signup: (email: string, password: string, name: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,10 +31,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const initializeAuth = async () => {
-      const token = localStorage.getItem('token');
+      const storedToken = localStorage.getItem('token');
       const savedHouseholdId = localStorage.getItem('householdId');
       
-      if (token) {
+      if (storedToken) {
         try {
           const response = await auth.getProfile();
           const userData = response.data as User;
@@ -50,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           
           setUser(userData);
-          setToken(token);
+          setToken(storedToken);
           
           // Save householdId if it exists
           if (userData.householdId) {
@@ -72,19 +67,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       const response = await auth.login(email, password);
       const { token, user } = response.data as AuthResponse;
+      
+      // Set token first
       setToken(token);
-      setUser(user);
       localStorage.setItem('token', token);
+      
+      // Then set user
+      setUser(user);
       
       // Save householdId if it exists
       if (user.householdId) {
         localStorage.setItem('householdId', user.householdId);
       }
       
+      // Navigate to dashboard after successful login
       navigate('/');
+      
+      return Promise.resolve();
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Login failed. Please try again.');
-      throw error;
+      const errorMessage = error.response?.data?.error || 'Login failed. Please try again.';
+      setError(errorMessage);
+      console.error('Login error:', error);
+      return Promise.reject(error);
     }
   };
 
@@ -93,20 +97,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       const response = await auth.register(username, email, password);
       const { token, user } = response.data as AuthResponse;
+      
+      // Set token first
       setToken(token);
-      setUser(user);
       localStorage.setItem('token', token);
+      
+      // Then set user
+      setUser(user);
       
       // Save householdId if it exists
       if (user.householdId) {
         localStorage.setItem('householdId', user.householdId);
       }
       
+      // Navigate to dashboard after successful registration
       navigate('/');
+      
+      return Promise.resolve();
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || 'Registration failed. Please try again.';
       setError(errorMessage);
-      throw error;
+      console.error('Registration error:', error);
+      return Promise.reject(error);
     }
   };
 
@@ -129,8 +141,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signup = async (email: string, password: string, name: string) => {
+    // Implementation for signup method
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, error, isAuthenticated, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, error, isAuthenticated, login, register, logout, updateUser, signup }}>
       {children}
     </AuthContext.Provider>
   );

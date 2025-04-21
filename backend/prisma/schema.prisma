@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../dev.db"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  username      String    @unique
+  password      String
+  bio           String?
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Household relationships
+  household     Household? @relation(fields: [householdId], references: [id])
+  householdId   String?
+  ownedHousehold Household? @relation("HouseholdOwner")
+
+  // Tasks relationships
+  assignedTasks CleaningTask[] @relation("AssignedTo")
+  createdTasks  CleaningTask[] @relation("CreatedBy")
+
+  // Guest announcements
+  guestAnnouncements GuestAnnouncement[]
+
+  // Connection invites
+  sentInvites     HouseholdInvite[] @relation("SentBy")
+  receivedInvites HouseholdInvite[] @relation("SentTo")
+}
+
+model Household {
+  id          String    @id @default(uuid())
+  name        String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  owner       User      @relation("HouseholdOwner", fields: [ownerId], references: [id])
+  ownerId     String    @unique
+  members     User[]
+  tasks       CleaningTask[]
+  announcements GuestAnnouncement[]
+  invites     HouseholdInvite[]
+}
+
+model CleaningTask {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime
+  status      String    @default("PENDING") // PENDING, COMPLETED, OVERDUE
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  assignedTo  User      @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedToId String
+  createdBy   User      @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById String
+  household   Household @relation(fields: [householdId], references: [id])
+  householdId String
+}
+
+model GuestAnnouncement {
+  id          String    @id @default(uuid())
+  guestCount  Int
+  startTime   DateTime
+  endTime     DateTime
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  household   Household @relation(fields: [householdId], references: [id])
+  householdId String
+}
+
+model HouseholdInvite {
+  id          String    @id @default(uuid())
+  status      String    @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  from        User      @relation("SentBy", fields: [fromId], references: [id])
+  fromId      String
+  to          User      @relation("SentTo", fields: [toId], references: [id])
+  toId        String
+  household   Household @relation(fields: [householdId], references: [id])
+  householdId String
+} 

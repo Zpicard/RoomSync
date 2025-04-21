@@ -1,0 +1,144 @@
+import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { AppError } from '../middleware/error';
+
+interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+  };
+}
+
+const prisma = new PrismaClient();
+
+export const createTask = async (req: AuthRequest, res: Response) => {
+  try {
+    const { title, description, dueDate, assignedToId, householdId } = req.body;
+    const createdById = req.user?.id;
+
+    if (!createdById) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const task = await prisma.cleaningTask.create({
+      data: {
+        title,
+        description,
+        dueDate: new Date(dueDate),
+        assignedTo: { connect: { id: assignedToId } },
+        createdBy: { connect: { id: createdById } },
+        household: { connect: { id: householdId } }
+      },
+      include: {
+        assignedTo: true,
+        createdBy: true,
+        household: true
+      }
+    });
+
+    res.status(201).json(task);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error creating task', 500);
+  }
+};
+
+export const updateTaskStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const { status } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const task = await prisma.cleaningTask.findUnique({
+      where: { id: taskId },
+      include: { assignedTo: true }
+    });
+
+    if (!task) {
+      throw new AppError('Task not found', 404);
+    }
+
+    if (task.assignedToId !== userId) {
+      throw new AppError('Not authorized to update this task', 403);
+    }
+
+    const updatedTask = await prisma.cleaningTask.update({
+      where: { id: taskId },
+      data: { status },
+      include: {
+        assignedTo: true,
+        createdBy: true,
+        household: true
+      }
+    });
+
+    res.json(updatedTask);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error updating task status', 500);
+  }
+};
+
+export const getHouseholdTasks = async (req: AuthRequest, res: Response) => {
+  try {
+    const { householdId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const tasks = await prisma.cleaningTask.findMany({
+      where: { householdId },
+      include: {
+        assignedTo: true,
+        createdBy: true
+      },
+      orderBy: {
+        dueDate: 'asc'
+      }
+    });
+
+    res.json(tasks);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error fetching tasks', 500);
+  }
+};
+
+export const deleteTask = async (req: AuthRequest, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const task = await prisma.cleaningTask.findUnique({
+      where: { id: taskId },
+      include: { household: { include: { owner: true } } }
+    });
+
+    if (!task) {
+      throw new AppError('Task not found', 404);
+    }
+
+    if (task.createdById !== userId && task.household.ownerId !== userId) {
+      throw new AppError('Not authorized to delete this task', 403);
+    }
+
+    await prisma.cleaningTask.delete({
+      where: { id: taskId }
+    });
+
+    res.json({ message: 'Task deleted successfully' });
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error deleting task', 500);
+  }
+}; 

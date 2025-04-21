@@ -27,8 +27,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only clear token and redirect on 401 if it's not a login request or household creation
+    if (error.response?.status === 401 && 
+        !error.config.url?.includes('/auth/login') && 
+        !error.config.url?.includes('/households')) {
       localStorage.removeItem('token');
+      localStorage.removeItem('householdId');
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -45,13 +49,44 @@ export const auth = {
   getProfile: () => apiClient.get('/auth/profile'),
 };
 
+interface HouseholdCreateInput {
+  name: string;
+}
+
+interface HouseholdResponse {
+  id: string;
+  name: string;
+  code: string;
+}
+
 // Household endpoints
 export const household = {
-  create: (name: string) => apiClient.post('/households', { name }),
+  create: async (data: HouseholdCreateInput): Promise<HouseholdResponse> => {
+    const response = await apiClient.post<HouseholdResponse>('/households', data);
+    return response.data;
+  },
   join: (code: string) => apiClient.post('/households/join', { code }),
-  leave: (householdId: string) => apiClient.post(`/households/${householdId}/leave`),
+  leave: (householdId: string) => {
+    console.log('API: Leaving household', householdId);
+    return apiClient.post<{ message: string }>(`/households/${householdId}/leave`)
+      .catch(error => {
+        console.error('Error in leave API call:', error);
+        throw error;
+      });
+  },
   getCurrent: () => apiClient.get('/households/current'),
   getMembers: (householdId: string) => apiClient.get(`/households/${householdId}/members`),
+  getDetails: (householdId: string) => apiClient.get(`/households/${householdId}`),
+  transferOwnership: (householdId: string, newOwnerId: string) => 
+    apiClient.post(`/households/${householdId}/transfer-ownership`, { newOwnerId }),
+  disband: (householdId: string) => {
+    console.log('API: Disbanding household', householdId);
+    return apiClient.post(`/households/${householdId}/disband`);
+  },
+  kickMember: (householdId: string, memberId: string) => {
+    console.log('API: Kicking member', memberId, 'from household', householdId);
+    return apiClient.post<{ message: string }>(`/households/${householdId}/kick/${memberId}`);
+  },
 };
 
 // Task endpoints
@@ -76,6 +111,13 @@ export const guests = {
     apiClient.patch(`/guests/${announcementId}`, data),
   delete: (announcementId: string) =>
     apiClient.delete(`/guests/${announcementId}`),
+};
+
+export const user = {
+  updateAvatar: (avatarUrl: string) =>
+    apiClient.patch('/profile/avatar', { avatarUrl }),
+  getProfile: () =>
+    apiClient.get('/users/profile'),
 };
 
 export default apiClient; 

@@ -1,36 +1,122 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   CalendarIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../../context/AuthContext';
+import { tasks } from '../../api/client';
+import { guests } from '../../api/client';
+import { Link } from 'react-router-dom';
 
-// Mock data - this would come from your backend
-const mockChores = [
-  { id: 1, task: 'Clean Kitchen', assignedTo: 'Alex', completed: true },
-  { id: 2, task: 'Take out Trash', assignedTo: 'Sam', completed: false },
-  { id: 3, task: 'Vacuum Living Room', assignedTo: 'Jordan', completed: false },
-];
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  dueDate: string;
+  status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'PENDING' | 'COMPLETED' | 'OVERDUE';
+  assignedTo: {
+    id: string;
+    username: string;
+  };
+}
 
-const mockEvents = [
-  {
-    id: 1,
-    type: 'guest',
-    title: 'Study Group',
-    time: '2:00 PM - 5:00 PM',
-    host: 'Alex',
-  },
-  {
-    id: 2,
-    type: 'quiet',
-    title: 'Exam Period',
-    time: 'All Day',
-    host: 'Jordan',
-  },
-];
+interface GuestAnnouncement {
+  id: string;
+  guestCount: number;
+  startTime: string;
+  endTime: string;
+  description?: string;
+  user: {
+    id: string;
+    username: string;
+  };
+}
+
+interface TasksResponse {
+  data: Task[];
+}
+
+interface GuestsResponse {
+  data: GuestAnnouncement[];
+}
 
 const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+  const [householdTasks, setHouseholdTasks] = useState<Task[]>([]);
+  const [guestAnnouncements, setGuestAnnouncements] = useState<GuestAnnouncement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user?.householdId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [tasksResponse, guestsResponse] = await Promise.all([
+          tasks.getHouseholdTasks(user.householdId),
+          guests.getHouseholdAnnouncements(user.householdId),
+        ]);
+
+        setHouseholdTasks((tasksResponse as TasksResponse).data);
+        setGuestAnnouncements((guestsResponse as GuestsResponse).data);
+      } catch (error: any) {
+        setError(error.response?.data?.error || 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user?.householdId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
+
+  if (!user?.householdId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Welcome to Roommate App!</h1>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">You need to join or create a household to get started.</p>
+        <div className="flex space-x-4">
+          <Link
+            to="/household/create"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            Create Household
+          </Link>
+          <Link
+            to="/household/join"
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          >
+            Join Household
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <motion.div
@@ -42,74 +128,91 @@ const Dashboard: React.FC = () => {
         <p className="text-gray-500 dark:text-gray-400 mt-2">Here's what's happening today</p>
       </motion.div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Weekly Chores Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="card"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Weekly Chores</h2>
-            <CalendarIcon className="w-6 h-6 text-primary-500 dark:text-primary-400" />
-          </div>
-          <div className="space-y-4">
-            {mockChores.map((chore) => (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="card"
+      >
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Household Tasks</h2>
+        <div className="space-y-4">
+          {householdTasks.length === 0 ? (
+            <p className="text-gray-500 dark:text-gray-400">No tasks assigned yet.</p>
+          ) : (
+            householdTasks.map((task) => (
               <div
-                key={chore.id}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg transition-colors duration-200"
-              >
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">{chore.task}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Assigned to {chore.assignedTo}</p>
-                </div>
-                {chore.completed ? (
-                  <CheckCircleIcon className="w-6 h-6 text-primary-500 dark:text-primary-400" />
-                ) : (
-                  <div className="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 rounded-full" />
-                )}
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Today's Events Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="card"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Today's Events</h2>
-            <CalendarIcon className="w-6 h-6 text-primary-500 dark:text-primary-400" />
-          </div>
-          <div className="space-y-4">
-            {mockEvents.map((event) => (
-              <div
-                key={event.id}
-                className={`p-3 rounded-lg transition-colors duration-200 ${
-                  event.type === 'quiet'
-                    ? 'bg-secondary-50 dark:bg-secondary-900/30 border border-secondary-200 dark:border-secondary-800'
-                    : 'bg-gray-50 dark:bg-gray-700'
-                }`}
+                key={task.id}
+                className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg transition-colors duration-200"
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{event.title}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{event.time}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Hosted by {event.host}</p>
+                    <h3 className="font-medium text-gray-900 dark:text-white">{task.title}</h3>
+                    {task.description && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {task.description}
+                      </p>
+                    )}
+                    <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      <CalendarIcon className="w-4 h-4 mr-1" />
+                      <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                    </div>
                   </div>
-                  {event.type === 'quiet' && (
-                    <ExclamationTriangleIcon className="w-5 h-5 text-secondary-500 dark:text-secondary-400" />
-                  )}
+                  <div className="flex items-center">
+                    {task.status === 'COMPLETED' || task.status === 'DONE' ? (
+                      <CheckCircleIcon className="w-6 h-6 text-green-500" />
+                    ) : task.status === 'OVERDUE' ? (
+                      <ExclamationTriangleIcon className="w-6 h-6 text-red-500" />
+                    ) : (
+                      <ClockIcon className="w-6 h-6 text-yellow-500" />
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
+            ))
+          )}
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="card"
+      >
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Today's Events</h2>
+        <div className="space-y-4">
+          {guestAnnouncements.length === 0 ? (
+            <p className="text-gray-500 dark:text-gray-400">No events scheduled for today.</p>
+          ) : (
+            guestAnnouncements.map((announcement) => (
+              <div
+                key={announcement.id}
+                className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg transition-colors duration-200"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-medium text-gray-900 dark:text-white">
+                      {announcement.guestCount} guests
+                    </h3>
+                    {announcement.description && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {announcement.description}
+                      </p>
+                    )}
+                    <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
+                      <CalendarIcon className="w-4 h-4 mr-1" />
+                      <span>
+                        {new Date(announcement.startTime).toLocaleTimeString()} -{' '}
+                        {new Date(announcement.endTime).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 };

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { household } from '../../api/client';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 interface HouseholdResponse {
   id: string;
@@ -47,6 +48,15 @@ const JoinHousehold: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeftIcon className="h-5 w-5 mr-2" />
+            Back to Dashboard
+          </button>
+        </div>
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-neutral-900 dark:text-neutral-50">
             Join a Household
