@@ -67,8 +67,8 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const { email, password } = req.body;
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
+    // Find user by email using findFirst instead of findUnique
+    const user = await prisma.user.findFirst({
       where: { email },
       include: {
         household: true
@@ -99,11 +99,15 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         id: user.id,
         username: user.username,
         email: user.email,
-        householdId: user.householdId,
-        avatarUrl: user.avatarUrl
+        avatarUrl: user.avatarUrl,
+        household: user.household
       }
     });
   } catch (error) {
-    next(error);
+    if (error instanceof AppError) {
+      next(error);
+    } else {
+      next(new AppError('Error during login', 500));
+    }
   }
 }; 
