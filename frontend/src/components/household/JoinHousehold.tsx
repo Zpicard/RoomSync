@@ -2,17 +2,19 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { household } from '../../api/client';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 interface HouseholdResponse {
   id: string;
   name: string;
+  code: string;
+  isPrivate: boolean;
 }
 
 const JoinHousehold: React.FC = () => {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
 
@@ -20,15 +22,20 @@ const JoinHousehold: React.FC = () => {
     e.preventDefault();
     
     if (!code.trim()) {
-      setError('Household code is required');
+      toast.error('Group code is required');
+      return;
+    }
+
+    if (!user) {
+      toast.error('You must be logged in to join a group');
+      navigate('/login');
       return;
     }
 
     try {
       setLoading(true);
-      setError(null);
       
-      const response = await household.join(code);
+      const response = await household.join(code.trim().toUpperCase());
       const householdData = response.data as HouseholdResponse;
       
       // Update the user's householdId in the auth context
@@ -37,80 +44,94 @@ const JoinHousehold: React.FC = () => {
         updateUser(updatedUser);
       }
       
+      toast.success('Successfully joined the group!');
       navigate('/');
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to join household. Please check the code and try again.');
+      if (error.response?.status === 404) {
+        toast.error('Invalid group code. Please check and try again.');
+      } else if (error.response?.status === 400) {
+        toast.error(error.response?.data?.error || 'You are already a member of a group');
+      } else {
+        toast.error('Failed to join group. Please try again.');
+      }
+      console.error('Error joining group:', error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 py-12 px-4 sm:px-6 lg:px-8">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="max-w-md w-full bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-8"
+      >
+        <div className="mb-6">
           <button
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center text-gray-600 hover:text-gray-900"
+            onClick={() => navigate('/')}
+            className="text-white/80 hover:text-white flex items-center"
           >
-            <ArrowLeftIcon className="h-5 w-5 mr-2" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
             Back to Dashboard
           </button>
         </div>
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-neutral-900 dark:text-neutral-50">
-            Join a Household
-          </h2>
-          <p className="mt-2 text-center text-sm text-neutral-600 dark:text-neutral-400">
-            Enter the household code to join an existing household
-          </p>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 dark:bg-red-900/50 p-4">
-              <div className="text-sm text-red-700 dark:text-red-200">{error}</div>
-            </div>
-          )}
-          
+        <h2 className="text-2xl font-bold text-white mb-6">Join a Group</h2>
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="code" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-              Household Code
+            <label htmlFor="code" className="block text-sm font-medium text-white/90">
+              Group Code
             </label>
             <input
-              id="code"
-              name="code"
               type="text"
-              required
-              className="mt-1 appearance-none block w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-md shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm dark:bg-neutral-800 dark:text-white"
-              placeholder="Enter household code"
+              id="code"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-gray-900 bg-white/90 uppercase"
+              placeholder="Enter group code"
+              required
             />
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              Ask the household owner for the code to join their household.
+            <p className="mt-1 text-sm text-white/70">
+              Enter the code provided by the group leader to join their group.
             </p>
           </div>
-          
+
+          <div className="bg-blue-500/20 p-4 rounded-md">
+            <h3 className="text-sm font-medium text-white">Group Types</h3>
+            <div className="mt-2 space-y-2">
+              <div>
+                <h4 className="text-sm font-medium text-white/90">Public Groups</h4>
+                <p className="text-sm text-white/80">
+                  Anyone with the group code can join public groups.
+                </p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-white/90">Private Groups</h4>
+                <p className="text-sm text-white/80">
+                  Private groups require a code to join. Only people with the code can join these groups.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div>
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-neutral-900 disabled:opacity-50"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
             >
               {loading ? (
-                <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                </span>
-              ) : null}
-              Join Household
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : (
+                'Join Group'
+              )}
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 };

@@ -16,8 +16,8 @@ export const updateAvatar = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (!avatarUrl || typeof avatarUrl !== 'string') {
-      return res.status(400).json({ message: 'Avatar URL is required' });
+    if (typeof avatarUrl !== 'string') {
+      return res.status(400).json({ message: 'Avatar URL must be a string' });
     }
 
     // Update user's avatar URL

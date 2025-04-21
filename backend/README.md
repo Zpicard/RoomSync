@@ -1,6 +1,6 @@
-# Roommate App Backend
+# RoomSync Backend
 
-This is the backend server for the Roommate App, built with Express.js, TypeScript, and SQLite (using Prisma ORM).
+This is the backend server for RoomSync, built with Express.js, TypeScript, and SQLite (using Prisma ORM).
 
 ## Features
 

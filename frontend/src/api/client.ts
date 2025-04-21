@@ -51,12 +51,14 @@ export const auth = {
 
 interface HouseholdCreateInput {
   name: string;
+  isPrivate?: boolean;
 }
 
 interface HouseholdResponse {
   id: string;
   name: string;
   code: string;
+  isPrivate: boolean;
 }
 
 // Household endpoints
@@ -65,6 +67,7 @@ export const household = {
     const response = await apiClient.post<HouseholdResponse>('/households', data);
     return response.data;
   },
+  getAll: () => apiClient.get('/households'),
   join: (code: string) => apiClient.post('/households/join', { code }),
   leave: (householdId: string) => {
     console.log('API: Leaving household', householdId);
@@ -87,18 +90,26 @@ export const household = {
     console.log('API: Kicking member', memberId, 'from household', householdId);
     return apiClient.post<{ message: string }>(`/households/${householdId}/kick/${memberId}`);
   },
+  invite: (householdId: string, email: string) => {
+    console.log('API: Inviting member', email, 'to household', householdId);
+    return apiClient.post<{ message: string }>(`/households/${householdId}/invite`, { email });
+  },
 };
 
 // Task endpoints
 export const tasks = {
-  create: (householdId: string, data: { title: string; description: string; dueDate: string; assignedTo?: string }) =>
+  create: (householdId: string, data: { title: string; description: string; dueDate: string; assignedToId?: string }) =>
     apiClient.post(`/tasks`, { ...data, householdId }),
+  createForAllMembers: (householdId: string, data: { title: string; description: string; dueDate: string }) =>
+    apiClient.post(`/tasks/all-members`, { ...data, householdId }),
   getHouseholdTasks: (householdId: string) =>
     apiClient.get(`/tasks/household/${householdId}`),
   updateStatus: (taskId: string, status: 'TODO' | 'IN_PROGRESS' | 'DONE' | 'PENDING' | 'COMPLETED' | 'OVERDUE') =>
     apiClient.patch(`/tasks/${taskId}/status`, { status }),
   assignTask: (taskId: string, userId: string) =>
     apiClient.patch(`/tasks/${taskId}/assign`, { userId }),
+  delete: (taskId: string) =>
+    apiClient.delete(`/tasks/${taskId}`),
 };
 
 // Guest announcement endpoints
@@ -115,7 +126,7 @@ export const guests = {
 
 export const user = {
   updateAvatar: (avatarUrl: string) =>
-    apiClient.patch('/profile/avatar', { avatarUrl }),
+    apiClient.patch('/users/avatar', { avatarUrl }),
   getProfile: () =>
     apiClient.get('/users/profile'),
 };

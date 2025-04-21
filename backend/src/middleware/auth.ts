@@ -48,11 +48,15 @@ export const auth = async (req: AuthRequest, res: Response, next: NextFunction) 
 
 export const householdMember = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { householdId } = req.params;
+    const householdId = req.params.householdId || req.body.householdId;
     const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({ error: 'Please authenticate.' });
+    }
+
+    if (!householdId) {
+      return res.status(400).json({ error: 'Household ID is required.' });
     }
 
     // Check if the household exists

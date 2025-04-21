@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import express from 'express';
 import {
   createTask,
+  createTaskForAllMembers,
   updateTaskStatus,
   getHouseholdTasks,
   deleteTask,
@@ -8,7 +9,7 @@ import {
 import { auth, householdMember } from '../middleware/auth';
 import { body } from 'express-validator';
 
-const router = Router();
+const router = express.Router();
 
 router.post(
   '/',
@@ -16,10 +17,22 @@ router.post(
   [
     body('title').notEmpty().withMessage('Title is required'),
     body('dueDate').isISO8601().withMessage('Valid due date is required'),
-    body('assignedToId').notEmpty().withMessage('Assigned user is required'),
     body('householdId').notEmpty().withMessage('Household ID is required'),
   ],
+  householdMember,
   createTask
+);
+
+router.post(
+  '/all-members',
+  auth,
+  [
+    body('title').notEmpty().withMessage('Title is required'),
+    body('dueDate').isISO8601().withMessage('Valid due date is required'),
+    body('householdId').notEmpty().withMessage('Household ID is required'),
+  ],
+  householdMember,
+  createTaskForAllMembers
 );
 
 router.patch(
@@ -35,7 +48,8 @@ router.patch(
 
 router.get(
   '/household/:householdId',
-  [auth, householdMember],
+  auth,
+  householdMember,
   getHouseholdTasks
 );
 

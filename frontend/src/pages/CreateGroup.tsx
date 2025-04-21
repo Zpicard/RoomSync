@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import client from '../api/client';
+import { household, auth } from '../api/client';
 import AuthLayout from '../components/auth/AuthLayout';
 import { User } from '../types/user';
 
-interface CreateGroupResponse {
-  user: User;
+interface UserResponse {
+  data: User;
 }
 
 const CreateGroup: React.FC = () => {
@@ -22,8 +22,15 @@ const CreateGroup: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await client.post<CreateGroupResponse>('/groups', { name });
-      updateUser(response.data.user);
+      // Create the household
+      const householdResponse = await household.create({ name });
+      
+      // Fetch updated user profile
+      const userResponse = await auth.getProfile() as UserResponse;
+      const updatedUser = userResponse.data;
+      
+      // Update user state with the new information
+      updateUser(updatedUser);
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create group');

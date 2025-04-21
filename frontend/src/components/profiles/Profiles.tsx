@@ -1,44 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   UserCircleIcon,
   PlusIcon,
   PencilIcon,
-  TrashIcon,
   XMarkIcon,
+  CheckCircleIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
+import apiClient from '../../api/client';
 
-// Mock data - this would come from your backend
-const mockProfiles = [
-  {
-    id: 1,
-    name: 'Alex Johnson',
-    email: 'alex@example.com',
-    bio: 'Computer Science major, loves coding and gaming',
-    preferences: ['Early bird', 'Clean freak', 'Night owl'],
-    avatarSeed: 'Alex',
-  },
-  {
-    id: 2,
-    name: 'Sam Smith',
-    email: 'sam@example.com',
-    bio: 'Biology major, enjoys hiking and photography',
-    preferences: ['Early bird', 'Social butterfly'],
-    avatarSeed: 'Sam',
-  },
-  {
-    id: 3,
-    name: 'Jordan Lee',
-    email: 'jordan@example.com',
-    bio: 'Business major, fitness enthusiast',
-    preferences: ['Clean freak', 'Social butterfly'],
-    avatarSeed: 'Jordan',
-  },
-];
+interface Profile {
+  id: string;
+  name: string;
+  avatar: string;
+  preferences: {
+    quietHours: string;
+    cleaningSchedule: string;
+    guestPolicy: string;
+  };
+  stats: {
+    choresCompleted: number;
+    guestsHosted: number;
+    quietDays: number;
+  };
+}
 
 const Profiles: React.FC = () => {
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [editingProfile, setEditingProfile] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState<typeof mockProfiles[0] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      try {
+        setIsLoading(true);
+        // Fetch profiles from your API
+        // const response = await apiClient.get('/api/profiles');
+        // setProfiles(response.data);
+      } catch (error) {
+        console.error('Error fetching profiles:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfiles();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -49,8 +58,8 @@ const Profiles: React.FC = () => {
         className="flex justify-between items-center"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Roommate Profiles</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Manage your roommate profiles and preferences</p>
+          <h1 className="text-3xl font-bold text-neutral-900">Roommate Profiles</h1>
+          <p className="text-neutral-500 mt-2">Manage roommate profiles and preferences</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -61,81 +70,98 @@ const Profiles: React.FC = () => {
         </button>
       </motion.div>
 
-      {/* Profile Grid */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-      >
-        {mockProfiles.map((profile) => (
-          <motion.div
-            key={profile.id}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="card hover:shadow-lg transition-shadow duration-200"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
+      {isLoading ? (
+        <div className="text-center py-8">Loading profiles...</div>
+      ) : profiles.length === 0 ? (
+        <div className="text-center py-8 text-neutral-500">
+          No profiles added yet. Click the "Add Profile" button to get started.
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {profiles.map((profile) => (
+            <motion.div
+              key={profile.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="card"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-4">
                   <img
-                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.avatarSeed}&backgroundColor=b6e3f4,c0aede,d1f4d9,ffdfbf,ffd5dc&mood[]=happy&style=circle`}
-                    alt={`${profile.name}'s avatar`}
-                    className="w-12 h-12 rounded-full ring-2 ring-gray-200 dark:ring-gray-700"
+                    src={profile.avatar}
+                    alt={profile.name}
+                    className="w-16 h-16 rounded-full"
                   />
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-neutral-900">
+                      {profile.name}
+                    </h3>
+                    <button
+                      onClick={() => setEditingProfile(profile.id)}
+                      className="text-sm text-primary-500 hover:text-primary-600 flex items-center space-x-1"
+                    >
+                      <PencilIcon className="w-4 h-4" />
+                      <span>Edit Profile</span>
+                    </button>
+                  </div>
                 </div>
+              </div>
+
+              <div className="mt-4 space-y-4">
                 <div>
-                  <h3 className="font-medium text-gray-900 dark:text-white">{profile.name}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{profile.email}</p>
+                  <h4 className="text-sm font-medium text-neutral-700">Preferences</h4>
+                  <ul className="mt-2 space-y-1 text-sm text-neutral-500">
+                    <li>Quiet Hours: {profile.preferences.quietHours}</li>
+                    <li>Cleaning: {profile.preferences.cleaningSchedule}</li>
+                    <li>Guests: {profile.preferences.guestPolicy}</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium text-neutral-700">Stats</h4>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    <div className="text-center p-2 bg-neutral-50 rounded">
+                      <div className="text-lg font-semibold text-neutral-900">
+                        {profile.stats.choresCompleted}
+                      </div>
+                      <div className="text-xs text-neutral-500">Chores</div>
+                    </div>
+                    <div className="text-center p-2 bg-neutral-50 rounded">
+                      <div className="text-lg font-semibold text-neutral-900">
+                        {profile.stats.guestsHosted}
+                      </div>
+                      <div className="text-xs text-neutral-500">Guests</div>
+                    </div>
+                    <div className="text-center p-2 bg-neutral-50 rounded">
+                      <div className="text-lg font-semibold text-neutral-900">
+                        {profile.stats.quietDays}
+                      </div>
+                      <div className="text-xs text-neutral-500">Quiet Days</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => {
-                    setSelectedProfile(profile);
-                    setShowAddModal(true);
-                  }}
-                  className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                >
-                  <PencilIcon className="w-5 h-5" />
-                </button>
-                <button className="p-2 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300">
-                  <TrashIcon className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            <p className="mt-4 text-gray-600 dark:text-gray-300">{profile.bio}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {profile.preferences.map((pref, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 text-sm rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                >
-                  {pref}
-                </span>
-              ))}
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* Add/Edit Profile Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md shadow-lg transition-colors duration-200"
+            className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md"
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {selectedProfile ? 'Edit Profile' : 'Add Profile'}
+                {editingProfile ? 'Edit Profile' : 'Add Profile'}
               </h3>
               <button
                 onClick={() => {
                   setShowAddModal(false);
-                  setSelectedProfile(null);
+                  setEditingProfile(null);
                 }}
                 className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               >
@@ -151,57 +177,59 @@ const Profiles: React.FC = () => {
                   type="text"
                   className="input"
                   placeholder="Enter name"
-                  defaultValue={selectedProfile?.name}
+                  defaultValue={profiles.find(p => p.id === editingProfile)?.name}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Email
+                  Avatar URL
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   className="input"
-                  placeholder="Enter email"
-                  defaultValue={selectedProfile?.email}
+                  placeholder="Enter avatar URL"
+                  defaultValue={profiles.find(p => p.id === editingProfile)?.avatar}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Bio
+                  Quiet Hours
                 </label>
-                <textarea
+                <input
+                  type="text"
                   className="input"
-                  rows={3}
-                  placeholder="Enter bio"
-                  defaultValue={selectedProfile?.bio}
+                  placeholder="Enter quiet hours"
+                  defaultValue={profiles.find(p => p.id === editingProfile)?.preferences.quietHours}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Preferences
+                  Cleaning Schedule
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {['Early bird', 'Night owl', 'Clean freak', 'Social butterfly'].map((pref) => (
-                    <label
-                      key={pref}
-                      className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        className="form-checkbox h-4 w-4 text-primary-600 dark:text-primary-400"
-                        defaultChecked={selectedProfile?.preferences.includes(pref)}
-                      />
-                      <span className="ml-2">{pref}</span>
-                    </label>
-                  ))}
-                </div>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Enter cleaning schedule"
+                  defaultValue={profiles.find(p => p.id === editingProfile)?.preferences.cleaningSchedule}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Guest Policy
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Enter guest policy"
+                  defaultValue={profiles.find(p => p.id === editingProfile)?.preferences.guestPolicy}
+                />
               </div>
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddModal(false);
-                    setSelectedProfile(null);
+                    setEditingProfile(null);
                   }}
                   className="btn bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                 >
@@ -211,7 +239,7 @@ const Profiles: React.FC = () => {
                   type="submit"
                   className="btn btn-primary"
                 >
-                  {selectedProfile ? 'Save Changes' : 'Add Profile'}
+                  {editingProfile ? 'Save Changes' : 'Add Profile'}
                 </button>
               </div>
             </form>

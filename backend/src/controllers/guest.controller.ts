@@ -20,6 +20,31 @@ export const createAnnouncement = async (req: AuthRequest, res: Response) => {
       throw new AppError('Authentication required', 401);
     }
 
+    // Check for overlapping announcements
+    const overlappingAnnouncements = await prisma.guestAnnouncement.findMany({
+      where: {
+        householdId,
+        OR: [
+          {
+            AND: [
+              { startTime: { lte: new Date(startTime) } },
+              { endTime: { gt: new Date(startTime) } }
+            ]
+          },
+          {
+            AND: [
+              { startTime: { lt: new Date(endTime) } },
+              { endTime: { gte: new Date(endTime) } }
+            ]
+          }
+        ]
+      }
+    });
+
+    if (overlappingAnnouncements.length > 0) {
+      throw new AppError('There is already a guest announcement during this time period', 409);
+    }
+
     const announcement = await prisma.guestAnnouncement.create({
       data: {
         guestCount,

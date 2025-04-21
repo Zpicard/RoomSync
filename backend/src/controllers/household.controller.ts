@@ -18,7 +18,7 @@ const generateHouseholdCode = () => {
 
 export const createHousehold = async (req: AuthRequest, res: Response) => {
   try {
-    const { name } = req.body;
+    const { name, isPrivate } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -39,6 +39,15 @@ export const createHousehold = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'You are already a member of a household' });
     }
 
+    // Check if a household with the same name already exists
+    const existingHousehold = await prisma.household.findFirst({
+      where: { name: name.trim() }
+    });
+
+    if (existingHousehold) {
+      return res.status(400).json({ error: 'A group with this name already exists. Please choose a different name.' });
+    }
+
     // Generate a unique code
     const code = generateHouseholdCode();
 
@@ -49,7 +58,8 @@ export const createHousehold = async (req: AuthRequest, res: Response) => {
         data: {
           name: name.trim(),
           code,
-          owner: { connect: { id: userId } }
+          isPrivate: isPrivate === true,
+          ownerId: userId
         }
       });
 
@@ -81,12 +91,34 @@ export const inviteMember = async (req: AuthRequest, res: Response) => {
       throw new AppError('Authentication required', 401);
     }
 
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      throw new AppError('Invalid email format', 400);
+    }
+
     const invitedUser = await prisma.user.findUnique({
       where: { email }
     });
 
     if (!invitedUser) {
-      throw new AppError('User not found', 404);
+      throw new AppError('User not found. Please make sure they have registered for the app.', 404);
+    }
+
+    // Check if user is already a member of a household
+    if (invitedUser.householdId) {
+      throw new AppError('User is already a member of another household', 400);
+    }
+
+    // Check if there's already a pending invite
+    const existingInvite = await prisma.householdInvite.findFirst({
+      where: {
+        toId: invitedUser.id,
+        householdId,
+        status: 'PENDING'
+      }
+    });
+
+    if (existingInvite) {
+      throw new AppError('User already has a pending invitation to this household', 400);
     }
 
     const invite = await prisma.householdInvite.create({
@@ -105,6 +137,7 @@ export const inviteMember = async (req: AuthRequest, res: Response) => {
     res.status(201).json(invite);
   } catch (error) {
     if (error instanceof AppError) throw error;
+    console.error('Error in inviteMember:', error);
     throw new AppError('Error sending invite', 500);
   }
 };
@@ -241,6 +274,7 @@ export const getHouseholdDetails = async (req: AuthRequest, res: Response) => {
       id: household.id,
       name: household.name,
       code: household.code,
+      isPrivate: household.isPrivate,
       ownerId: household.ownerId,
       members: household.members.map(member => ({
         id: member.id,
@@ -322,21 +356,59 @@ export const disbandHousehold = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'Only the owner can disband the household' });
     }
 
-    // Remove all members from the household
-    await prisma.user.updateMany({
-      where: { householdId },
-      data: { householdId: null }
-    });
+    try {
+      // Use a transaction to ensure all operations succeed or fail together
+      await prisma.$transaction(async (prisma) => {
+        // First, delete all cleaning tasks
+        await prisma.cleaningTask.deleteMany({
+          where: { householdId }
+        });
+        
+        // Delete all guest announcements
+        await prisma.guestAnnouncement.deleteMany({
+          where: { householdId }
+        });
+        
+        // Delete all household invites
+        await prisma.householdInvite.deleteMany({
+          where: { householdId }
+        });
+        
+        // Remove all members from the household
+        await prisma.user.updateMany({
+          where: { householdId },
+          data: { householdId: null }
+        });
+        
+        // Finally, delete the household
+        await prisma.household.delete({
+          where: { id: householdId }
+        });
+      });
 
-    // Delete the household
-    await prisma.household.delete({
-      where: { id: householdId }
-    });
-
-    res.json({ message: 'Household disbanded successfully' });
+      res.json({ message: 'Household disbanded successfully' });
+    } catch (transactionError) {
+      console.error('Transaction error when disbanding household:', transactionError);
+      
+      // If the transaction fails, try to at least remove members from the household
+      try {
+        await prisma.user.updateMany({
+          where: { householdId },
+          data: { householdId: null }
+        });
+        
+        res.json({ 
+          message: 'Household disbanding was partially successful. Members have been removed, but some cleanup may be needed.' 
+        });
+      } catch (fallbackError) {
+        console.error('Fallback error when removing members:', fallbackError);
+        throw new AppError('Failed to disband household and remove members', 500);
+      }
+    }
   } catch (error) {
     console.error('Error disbanding household:', error);
-    res.status(500).json({ message: 'Error disbanding household. Please try again.' });
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error disbanding household. Please try again.', 500);
   }
 };
 
@@ -385,5 +457,106 @@ export const kickMember = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Error kicking member:', error);
     res.status(500).json({ message: 'Error kicking member. Please try again.' });
+  }
+};
+
+export const joinHousehold = async (req: AuthRequest, res: Response) => {
+  try {
+    const { code } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    if (!code || typeof code !== 'string') {
+      throw new AppError('Household code is required', 400);
+    }
+
+    // Find the household with the given code
+    const household = await prisma.household.findFirst({
+      where: { code: code.toUpperCase() },
+      include: { members: true }
+    });
+
+    if (!household) {
+      throw new AppError('Invalid household code', 404);
+    }
+
+    // Check if user is already a member of this household
+    const isAlreadyMember = household.members.some(member => member.id === userId);
+    if (isAlreadyMember) {
+      return res.json({
+        id: household.id,
+        name: household.name,
+        code: household.code,
+        isPrivate: household.isPrivate
+      });
+    }
+
+    // Check if user is already a member of a different household
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { household: true }
+    });
+
+    if (user?.household) {
+      // Check if user is the owner of their current household
+      const currentHousehold = await prisma.household.findUnique({
+        where: { id: user.household.id }
+      });
+      
+      if (currentHousehold && currentHousehold.ownerId === userId) {
+        throw new AppError('You are the leader of another group. Please disband it first before joining a new group.', 400);
+      }
+      
+      throw new AppError('You are already a member of a household', 400);
+    }
+
+    // Add user to the household
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        household: { connect: { id: household.id } }
+      }
+    });
+
+    res.json({
+      id: household.id,
+      name: household.name,
+      code: household.code,
+      isPrivate: household.isPrivate
+    });
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    console.error('Error joining household:', error);
+    throw new AppError('Error joining household', 500);
+  }
+};
+
+export const getAllHouseholds = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Get all households
+    const households = await prisma.household.findMany({
+      include: {
+        members: {
+          select: {
+            id: true,
+            username: true
+          }
+        }
+      }
+    });
+
+    res.json(households);
+  } catch (error) {
+    console.error('Error fetching households:', error);
+    res.status(500).json({ error: 'Error fetching households' });
   }
 }; 

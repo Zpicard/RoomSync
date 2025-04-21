@@ -28,8 +28,16 @@ router.patch('/avatar',
   [
     body('avatarUrl')
       .isString()
-      .isURL()
-      .withMessage('Please provide a valid avatar URL'),
+      .custom((value) => {
+        if (value === '') return true;
+        try {
+          new URL(value);
+          return true;
+        } catch {
+          return false;
+        }
+      })
+      .withMessage('Please provide a valid avatar URL or empty string to remove avatar'),
   ],
   updateAvatar
 );

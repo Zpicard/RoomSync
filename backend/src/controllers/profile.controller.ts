@@ -104,8 +104,8 @@ export const updateAvatar = async (req: AuthRequest, res: Response) => {
       throw new AppError('Authentication required', 401);
     }
 
-    if (!avatarUrl || typeof avatarUrl !== 'string') {
-      throw new AppError('Avatar URL is required', 400);
+    if (typeof avatarUrl !== 'string') {
+      throw new AppError('Avatar URL must be a string', 400);
     }
 
     const updatedUser = await prisma.user.update({

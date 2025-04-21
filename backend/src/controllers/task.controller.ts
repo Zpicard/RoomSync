@@ -43,6 +43,53 @@ export const createTask = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const createTaskForAllMembers = async (req: AuthRequest, res: Response) => {
+  try {
+    const { title, description, dueDate, householdId } = req.body;
+    const createdById = req.user?.id;
+
+    if (!createdById) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    // Get all members of the household
+    const household = await prisma.household.findUnique({
+      where: { id: householdId },
+      include: { members: true }
+    });
+
+    if (!household) {
+      throw new AppError('Household not found', 404);
+    }
+
+    // Create a task for each member
+    const tasks = await Promise.all(
+      household.members.map(async (member) => {
+        return prisma.cleaningTask.create({
+          data: {
+            title,
+            description,
+            dueDate: new Date(dueDate),
+            assignedTo: { connect: { id: member.id } },
+            createdBy: { connect: { id: createdById } },
+            household: { connect: { id: householdId } }
+          },
+          include: {
+            assignedTo: true,
+            createdBy: true,
+            household: true
+          }
+        });
+      })
+    );
+
+    res.status(201).json(tasks);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error creating tasks for all members', 500);
+  }
+};
+
 export const updateTaskStatus = async (req: AuthRequest, res: Response) => {
   try {
     const { taskId } = req.params;
@@ -55,14 +102,24 @@ export const updateTaskStatus = async (req: AuthRequest, res: Response) => {
 
     const task = await prisma.cleaningTask.findUnique({
       where: { id: taskId },
-      include: { assignedTo: true }
+      include: { 
+        assignedTo: true,
+        household: {
+          include: {
+            members: true
+          }
+        }
+      }
     });
 
     if (!task) {
       throw new AppError('Task not found', 404);
     }
 
-    if (task.assignedToId !== userId) {
+    // Check if user is a member of the household
+    const isHouseholdMember = task.household.members.some(member => member.id === userId);
+    
+    if (!isHouseholdMember) {
       throw new AppError('Not authorized to update this task', 403);
     }
 

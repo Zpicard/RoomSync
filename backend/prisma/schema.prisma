@@ -37,6 +37,8 @@ model User {
 model Household {
   id          String    @id @default(uuid())
   name        String
+  code        String    @unique
+  isPrivate   Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

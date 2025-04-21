@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   MoonIcon,
@@ -7,53 +7,49 @@ import {
   ExclamationTriangleIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import apiClient from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
+import NoHouseholdMessage from '../common/NoHouseholdMessage';
 
-// Mock data - this would come from your backend
-const mockQuietTimes = [
-  {
-    id: 1,
-    title: 'Final Exams',
-    type: 'exam',
-    date: '2024-04-25',
-    time: '09:00-17:00',
-    person: 'Jordan',
-    description: 'Final exams for Computer Science',
-  },
-  {
-    id: 2,
-    title: 'Study Session',
-    type: 'study',
-    date: '2024-04-23',
-    time: '19:00-22:00',
-    person: 'Alex',
-    description: 'Group study for upcoming exams',
-  },
-  {
-    id: 3,
-    title: 'Mental Health Day',
-    type: 'quiet',
-    date: '2024-04-24',
-    time: 'All Day',
-    person: 'Sam',
-    description: 'Need quiet time for mental health',
-  },
-];
+interface QuietTime {
+  id: string;
+  title: string;
+  type: 'exam' | 'study' | 'quiet';
+  date: string;
+  time: string;
+  person: string;
+  description: string;
+}
 
 const QuietTime: React.FC = () => {
+  const { user } = useAuth();
+  const [quietTimes, setQuietTimes] = useState<QuietTime[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getIconForType = (type: string) => {
-    switch (type) {
-      case 'exam':
-        return <AcademicCapIcon className="w-6 h-6 text-secondary-500 dark:text-secondary-400" />;
-      case 'study':
-        return <MoonIcon className="w-6 h-6 text-primary-500 dark:text-primary-400" />;
-      case 'quiet':
-        return <MoonIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />;
-      default:
-        return null;
-    }
-  };
+  useEffect(() => {
+    const fetchQuietTimes = async () => {
+      try {
+        setIsLoading(true);
+        // Fetch quiet times from your API
+        // const response = await apiClient.get('/api/quiet-times');
+        // setQuietTimes(response.data);
+      } catch (error) {
+        console.error('Error fetching quiet times:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchQuietTimes();
+  }, []);
+
+  if (!user?.householdId) {
+    return <NoHouseholdMessage 
+      title="No Group Found" 
+      message="You need to join or create a household to manage quiet times." 
+    />;
+  }
 
   return (
     <div className="space-y-6">
@@ -64,8 +60,8 @@ const QuietTime: React.FC = () => {
         className="flex justify-between items-center"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Quiet Time</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Manage study periods and quiet hours</p>
+          <h1 className="text-3xl font-bold text-neutral-900">Quiet Time</h1>
+          <p className="text-neutral-500 mt-2">Manage study and rest periods</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -76,43 +72,52 @@ const QuietTime: React.FC = () => {
         </button>
       </motion.div>
 
-      {/* Quiet Time List */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="card"
-      >
+      {isLoading ? (
+        <div className="text-center py-8">Loading quiet times...</div>
+      ) : quietTimes.length === 0 ? (
+        <div className="text-center py-8 text-neutral-500">
+          No quiet times scheduled. Click the "Add Quiet Time" button to get started.
+        </div>
+      ) : (
         <div className="space-y-4">
-          {mockQuietTimes.map((event) => (
+          {quietTimes.map((quietTime) => (
             <motion.div
-              key={event.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className={`p-4 rounded-lg transition-colors duration-200 ${
-                event.type === 'exam'
-                  ? 'bg-secondary-50 dark:bg-secondary-900/30 border border-secondary-200 dark:border-secondary-800'
-                  : event.type === 'study'
-                  ? 'bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800'
-                  : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
+              key={quietTime.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`p-4 rounded-lg ${
+                quietTime.type === 'exam'
+                  ? 'bg-red-50 border border-red-200'
+                  : quietTime.type === 'study'
+                  ? 'bg-blue-50 border border-blue-200'
+                  : 'bg-green-50 border border-green-200'
               }`}
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-medium text-gray-900 dark:text-white">{event.title}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {event.date} • {event.time} • {event.person}
+                  <div className="flex items-center space-x-2">
+                    {quietTime.type === 'exam' ? (
+                      <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />
+                    ) : quietTime.type === 'study' ? (
+                      <AcademicCapIcon className="w-5 h-5 text-blue-500" />
+                    ) : (
+                      <MoonIcon className="w-5 h-5 text-green-500" />
+                    )}
+                    <h3 className="font-medium text-neutral-900">{quietTime.title}</h3>
+                  </div>
+                  <p className="text-sm text-neutral-500 mt-1">
+                    {quietTime.date} • {quietTime.time}
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {event.description}
-                  </p>
+                  <p className="text-sm text-neutral-500">By {quietTime.person}</p>
+                  {quietTime.description && (
+                    <p className="text-sm text-neutral-500 mt-1">{quietTime.description}</p>
+                  )}
                 </div>
-                {getIconForType(event.type)}
               </div>
             </motion.div>
           ))}
         </div>
-      </motion.div>
+      )}
 
       {/* Add Quiet Time Modal */}
       {showAddModal && (

@@ -20,6 +20,7 @@ interface HouseholdInfo {
   id: string;
   name: string;
   code: string;
+  isPrivate: boolean;
   ownerId: string;
   members: Array<{
     id: string;
@@ -154,6 +155,9 @@ const Profile: React.ComponentType = () => {
         console.log('Updating user context:', updatedUser);
         updateUser(updatedUser);
         setHouseholdInfo(null);
+        
+        // Also remove householdId from localStorage
+        localStorage.removeItem('householdId');
       }
       
       setShowDisbandConfirm(false);
@@ -265,6 +269,9 @@ const Profile: React.ComponentType = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Code: {householdInfo.code}
                 </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Type: {householdInfo.isPrivate ? 'Private Group' : 'Public Group'}
+                </p>
                 
                 <div className="mt-4 flex flex-wrap gap-2">
                   {/* Debug info */}
@@ -324,14 +331,14 @@ const Profile: React.ComponentType = () => {
                 </p>
                 <div className="mt-2 flex space-x-2">
                   <button
-                    onClick={() => navigate('/household/create')}
+                    onClick={() => navigate('/create-household')}
                     className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
                   >
                     Create Group
                   </button>
                   <span className="text-gray-300 dark:text-gray-600">|</span>
                   <button
-                    onClick={() => navigate('/household/join')}
+                    onClick={() => navigate('/join-household')}
                     className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
                   >
                     Join Group
@@ -472,7 +479,7 @@ const Profile: React.ComponentType = () => {
       )}
 
       {/* Disband Group Confirmation Modal */}
-      {showDisbandConfirm && (
+      {showDisbandConfirm && householdInfo && (
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 transition-opacity" aria-hidden="true">
@@ -483,7 +490,7 @@ const Profile: React.ComponentType = () => {
               <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 sm:mx-0 sm:h-10 sm:w-10">
-                    <TrashIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
+                    <ExclamationTriangleIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
                   </div>
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                     <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
@@ -491,7 +498,10 @@ const Profile: React.ComponentType = () => {
                     </h3>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Are you sure you want to disband this group? This action cannot be undone and all members will be removed from the group.
+                        Are you sure you want to disband the group "{householdInfo.name}"? This action cannot be undone.
+                      </p>
+                      <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                        All members will be removed from the group and all group data will be permanently deleted.
                       </p>
                     </div>
                   </div>

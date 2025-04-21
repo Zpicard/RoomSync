@@ -6,7 +6,7 @@ import { AppError } from '../middleware/error';
 
 const prisma = new PrismaClient();
 
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, username, password } = req.body;
 
@@ -21,7 +21,9 @@ export const register = async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
-      throw new AppError('Email or username already exists', 400);
+      return res.status(400).json({
+        error: 'Email or username already exists'
+      });
     }
 
     // Hash password
@@ -54,9 +56,10 @@ export const register = async (req: Request, res: Response) => {
     });
   } catch (error) {
     if (error instanceof AppError) {
-      throw error;
+      next(error);
+    } else {
+      next(new AppError('Error creating user', 500));
     }
-    throw new AppError('Error creating user', 500);
   }
 };
 

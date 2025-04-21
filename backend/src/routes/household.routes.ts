@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createHousehold, inviteMember, respondToInvite, leaveHousehold, getHouseholdDetails, transferOwnership, disbandHousehold, kickMember } from '../controllers/household.controller';
+import { createHousehold, inviteMember, respondToInvite, leaveHousehold, getHouseholdDetails, transferOwnership, disbandHousehold, kickMember, joinHousehold, getAllHouseholds } from '../controllers/household.controller';
 import { auth, householdMember } from '../middleware/auth';
 import { body } from 'express-validator';
 
@@ -66,5 +66,20 @@ router.post(
   [auth, householdMember],
   kickMember
 );
+
+router.post(
+  '/join',
+  auth,
+  [
+    body('code')
+      .isString()
+      .notEmpty()
+      .withMessage('Household code is required'),
+  ],
+  joinHousehold
+);
+
+// Get all households
+router.get('/', auth, getAllHouseholds);
 
 export default router; 

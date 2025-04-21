@@ -13,6 +13,7 @@ interface AuthContextType {
   token: string | null;
   error: string | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -26,16 +27,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const isAuthenticated = !!token;
   const navigate = useNavigate();
 
   useEffect(() => {
     const initializeAuth = async () => {
-      const storedToken = localStorage.getItem('token');
-      const savedHouseholdId = localStorage.getItem('householdId');
-      
-      if (storedToken) {
-        try {
+      try {
+        const storedToken = localStorage.getItem('token');
+        const savedHouseholdId = localStorage.getItem('householdId');
+        
+        if (storedToken) {
           const response = await auth.getProfile();
           const userData = response.data as User;
           
@@ -51,11 +53,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (userData.householdId) {
             localStorage.setItem('householdId', userData.householdId);
           }
-        } catch (error) {
-          console.error('Failed to fetch user profile:', error);
-          localStorage.removeItem('token');
-          localStorage.removeItem('householdId');
         }
+      } catch (error) {
+        console.error('Failed to initialize auth:', error);
+        // Clear invalid token
+        localStorage.removeItem('token');
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -64,31 +68,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       setError(null);
       const response = await auth.login(email, password);
       const { token, user } = response.data as AuthResponse;
       
-      // Set token first
-      setToken(token);
       localStorage.setItem('token', token);
-      
-      // Then set user
+      setToken(token);
       setUser(user);
       
-      // Save householdId if it exists
       if (user.householdId) {
         localStorage.setItem('householdId', user.householdId);
       }
       
-      // Navigate to dashboard after successful login
       navigate('/');
-      
-      return Promise.resolve();
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Login failed. Please try again.';
-      setError(errorMessage);
-      console.error('Login error:', error);
-      return Promise.reject(error);
+    } catch (error) {
+      setError('Invalid email or password');
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -123,10 +121,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    setUser(null);
-    setToken(null);
     localStorage.removeItem('token');
     localStorage.removeItem('householdId');
+    setToken(null);
+    setUser(null);
     navigate('/login');
   };
 
@@ -145,8 +143,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Implementation for signup method
   };
 
+  const value = {
+    user,
+    token,
+    error,
+    isAuthenticated,
+    isLoading,
+    login,
+    register,
+    logout,
+    updateUser,
+    signup
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+      </div>
+    );
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, error, isAuthenticated, login, register, logout, updateUser, signup }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
