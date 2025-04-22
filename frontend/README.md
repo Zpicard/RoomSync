@@ -2,55 +2,13 @@
 
 This is the frontend application for RoomSync, built with React, TypeScript, and modern web technologies. It provides a beautiful, responsive, and intuitive user interface for managing roommate coordination.
 
-## 🛠️ Technology Stack
-
-### Core Technologies
-- **React 18**: Latest version with concurrent features
-- **TypeScript**: For type safety and better development experience
-- **Tailwind CSS**: Utility-first CSS framework
-- **Framer Motion**: For smooth animations and transitions
-
-### State Management & Data Fetching
-- **React Query**: For server state management and data fetching
-- **Context API**: For global state management
-- **Socket.io-client**: For real-time updates
-
-### UI Components & Styling
-- **Heroicons**: For beautiful, consistent icons
-- **Tailwind CSS**: Custom design system
-- **CSS Modules**: For component-scoped styling
-- **PostCSS**: For advanced CSS processing
-
-### Development Tools
-- **Vite**: For fast development and building
-- **ESLint**: For code linting
-- **Prettier**: For code formatting
-- **TypeScript**: For static type checking
-
-## 📁 Project Structure
-
-```
-frontend/
-├── src/
-│   ├── components/          # Reusable UI components
-│   │   ├── common/         # Shared components
-│   │   ├── dashboard/      # Dashboard components
-│   │   ├── chores/         # Chore management
-│   │   ├── guests/         # Guest scheduling
-│   │   ├── quiet-time/     # Quiet time management
-│   │   └── profiles/       # User profiles
-│   ├── hooks/              # Custom React hooks
-│   ├── context/            # React Context providers
-│   ├── api/                # API client and endpoints
-│   ├── types/              # TypeScript type definitions
-│   ├── utils/              # Utility functions
-│   ├── styles/             # Global styles
-│   └── pages/              # Page components
-├── public/                 # Static assets
-└── tests/                  # Test files
-```
-
 ## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v14 or higher)
+- npm (v6 or higher)
+
+### Installation
 
 1. **Install Dependencies**
    ```bash
@@ -59,21 +17,18 @@ frontend/
 
 2. **Set Up Environment Variables**
    ```bash
-   cp .env.example .env
+   # Create a .env file in the frontend directory
+   touch .env
    ```
-   Configure the following variables:
-   - `VITE_API_URL`: Backend API URL
-   - `VITE_WS_URL`: WebSocket URL
-   - `VITE_GOOGLE_CLIENT_ID`: Google OAuth client ID
+   
+   Add the following to your `.env` file:
+   ```
+   REACT_APP_API_URL=http://localhost:8080/api
+   ```
 
 3. **Start Development Server**
    ```bash
-   npm run dev
-   ```
-
-4. **Build for Production**
-   ```bash
-   npm run build
+   npm start
    ```
 
 ## 💻 Development Guidelines
@@ -106,8 +61,7 @@ export default Component;
 - Use CSS modules for component-specific styles
 
 ### State Management
-- Use React Query for server state
-- Use Context API for global UI state
+- Use Context API for global state (AuthContext)
 - Use local state for component-specific state
 - Implement proper loading and error states
 
@@ -115,7 +69,7 @@ export default Component;
 
 ### Colors
 ```css
---primary: #10B981;
+--primary: #3B82F6;
 --secondary: #6366F1;
 --accent: #F59E0B;
 --background: #F9FAFB;
@@ -131,13 +85,38 @@ export default Component;
 - Base unit: 4px
 - Spacing scale: 4, 8, 16, 24, 32, 48, 64
 
-### Components
-- Buttons
-- Cards
-- Forms
-- Modals
-- Navigation
-- Tables
+## 📦 Project Structure
+```
+frontend/
+├── src/
+│   ├── components/     # Reusable components
+│   ├── pages/         # Page components
+│   ├── context/       # Context providers
+│   ├── api/           # API client
+│   ├── types/         # TypeScript types
+│   └── utils/         # Utility functions
+├── public/            # Static assets
+├── .env              # Environment variables
+└── package.json      # Dependencies
+```
+
+## 🛠️ Tech Stack
+- React
+- TypeScript
+- Create React App
+- Tailwind CSS
+- Framer Motion
+- Axios
+- React Router
+- React Hot Toast
+
+## 📱 Features
+- User Authentication
+- Household Management
+- Task Management
+- Guest Announcements
+- Quiet Time Scheduling
+- Real-time Updates
 
 ## 🔄 API Integration
 
@@ -147,7 +126,7 @@ export default Component;
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: process.env.REACT_APP_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -156,33 +135,19 @@ const apiClient = axios.create({
 export default apiClient;
 ```
 
-### API Endpoints
-- Authentication
-- User management
-- Household management
-- Chore management
-- Guest scheduling
-- Quiet time management
-
 ## 🧪 Testing
 
 ### Unit Tests
 ```bash
-npm run test
-```
-
-### E2E Tests
-```bash
-npm run test:e2e
+npm test
 ```
 
 ### Test Coverage
 ```bash
-npm run test:coverage
+npm test -- --coverage
 ```
 
 ## 📱 Responsive Design
-
 - Mobile-first approach
 - Breakpoints:
   - sm: 640px
@@ -211,12 +176,12 @@ npm run test:coverage
 
 ### Development Build
 ```bash
-npm run build:dev
+npm start
 ```
 
 ### Production Build
 ```bash
-npm run build:prod
+npm run build
 ```
 
 ### Deployment
@@ -228,7 +193,6 @@ npm run build:prod
 ## 🔍 Debugging
 
 - React Developer Tools
-- Redux DevTools
 - Network monitoring
 - Error tracking
 - Performance profiling
@@ -238,5 +202,4 @@ npm run build:prod
 - [React Documentation](https://reactjs.org/)
 - [TypeScript Documentation](https://www.typescriptlang.org/)
 - [Tailwind CSS Documentation](https://tailwindcss.com/)
-- [Framer Motion Documentation](https://www.framer.com/motion/)
-- [React Query Documentation](https://react-query.tanstack.com/) 
+- [Framer Motion Documentation](https://www.framer.com/motion/) 

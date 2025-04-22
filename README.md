@@ -1,130 +1,201 @@
-# RoomSync - Modern Roommate Coordination Platform
+# RoomSync - Roommate Coordination App
 
-RoomSync is a comprehensive web application designed to streamline roommate coordination and enhance living arrangements. It provides an intuitive platform for managing shared responsibilities, scheduling quiet hours, coordinating guest visits, and maintaining clear communication among roommates.
+RoomSync is a web application designed to help roommates coordinate tasks, manage shared spaces, and communicate effectively. It provides features for task management, guest announcements, quiet time scheduling, and more.
 
-## 🌟 Key Features
+## 🚀 Features
 
-- **Smart Dashboard**: Central hub for all household activities and upcoming events
-- **Chore Management**: Automated chore rotation and tracking system
-- **Guest Coordination**: Easy scheduling and management of guest visits
-- **Quiet Time Scheduling**: Coordinate study sessions and quiet hours
-- **Profile Management**: Individual profiles with preferences and statistics
-- **Real-time Updates**: Instant notifications for household activities
-- **Responsive Design**: Seamless experience across all devices
+- **User Authentication**: Secure login and registration
+- **Household Management**: Create, join, and manage households
+- **Task Management**: Assign and track cleaning tasks
+- **Guest Announcements**: Notify roommates about upcoming guests
+- **Quiet Time Scheduling**: Coordinate study and quiet hours
+- **Real-time Updates**: Stay informed about household activities
 
-## 🚀 How It Works
-
-RoomSync operates on a modern client-server architecture:
-- Frontend: React-based SPA with real-time updates
-- Backend: Node.js/Express API with PostgreSQL database
-- Authentication: JWT-based secure authentication
-- Real-time: WebSocket integration for live updates
-
-## 💻 Technologies Used
-
-### Frontend
-- React 18 with TypeScript
-- Tailwind CSS for styling
-- Framer Motion for animations
-- React Query for data fetching
-- Socket.io-client for real-time features
+## 🛠️ Tech Stack
 
 ### Backend
-- Node.js with Express
+- Node.js
+- Express
 - TypeScript
-- PostgreSQL with Prisma ORM
+- Prisma ORM
+- SQLite Database
 - JWT Authentication
-- Socket.io for real-time communication
+- bcrypt for password hashing
 
-## 🛠️ Getting Started
+### Frontend
+- React
+- TypeScript
+- Create React App
+- Tailwind CSS
+- Framer Motion
+- Axios
+- React Router
+- React Hot Toast
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/yourusername/roomsync.git
-   cd roomsync
-   ```
+## 📋 Prerequisites
 
-2. **Set Up Environment**
-   - Copy `.env.example` to `.env` in both frontend and backend directories
-   - Configure your environment variables
+- Node.js (v14 or higher)
+- npm (v6 or higher)
 
-3. **Install Dependencies**
-   ```bash
-   # Install root dependencies
-   npm install
+## 🚀 Getting Started
 
-   # Install frontend dependencies
-   cd frontend
-   npm install
+### 1. Clone the Repository
 
-   # Install backend dependencies
-   cd ../backend
-   npm install
-   ```
+```bash
+git clone https://github.com/yourusername/roommate-app.git
+cd roommate-app
+```
 
-4. **Start Development Servers**
-   ```bash
-   # Start backend server
-   cd backend
-   npm run dev
+### 2. Backend Setup
 
-   # Start frontend server (in a new terminal)
-   cd frontend
-   npm start
-   ```
+```bash
+# Navigate to the backend directory
+cd backend
 
-5. **Access the Application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5000
+# Install dependencies
+npm install
 
-## 📱 Using RoomSync
+# Create a .env file
+touch .env
+```
 
-1. **Create an Account**
-   - Sign up with email or social login
-   - Create or join a household
+Add the following to your `.env` file:
+```
+DATABASE_URL="file:../dev.db"
+JWT_SECRET="your-secret-key"
+```
 
-2. **Set Up Your Household**
-   - Add roommate information
-   - Configure household preferences
-   - Set up chore rotation
+```bash
+# Initialize the database
+npx prisma generate
+npx prisma migrate dev
 
-3. **Start Managing**
-   - Schedule chores
-   - Plan guest visits
-   - Coordinate quiet hours
-   - Track household activities
+# Start the backend server
+npm run dev
+```
 
-## 🔒 Security Features
+### 3. Frontend Setup
 
-- JWT-based authentication
-- Role-based access control
-- Secure password hashing
-- HTTPS encryption
+```bash
+# Open a new terminal and navigate to the frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Create a .env file
+touch .env
+```
+
+Add the following to your `.env` file:
+```
+REACT_APP_API_URL=http://localhost:8080/api
+```
+
+```bash
+# Start the frontend development server
+npm start
+```
+
+### 4. Access the Application
+
+Open your browser and navigate to:
+```
+http://localhost:3000
+```
+
+## 📁 Project Structure
+
+```
+roommate-app/
+├── backend/              # Backend server
+│   ├── src/
+│   │   ├── controllers/ # Request handlers
+│   │   ├── middleware/  # Custom middleware
+│   │   ├── routes/      # API routes
+│   │   ├── types/       # TypeScript types
+│   │   └── utils/       # Utility functions
+│   ├── prisma/
+│   │   └── schema.prisma # Database schema
+│   └── .env             # Environment variables
+│
+├── frontend/             # Frontend application
+│   ├── src/
+│   │   ├── components/  # Reusable components
+│   │   ├── pages/       # Page components
+│   │   ├── context/     # Context providers
+│   │   ├── api/         # API client
+│   │   ├── types/       # TypeScript types
+│   │   └── utils/       # Utility functions
+│   ├── public/          # Static assets
+│   └── .env             # Environment variables
+│
+└── README.md             # Project documentation
+```
+
+## 🔒 Security
+
+- JWT token-based authentication
+- Password hashing with bcrypt
 - Input validation and sanitization
+- CORS protection
+- Secure HTTP headers
 
-## 🌐 Deployment
+## 📱 Responsive Design
 
-The application can be deployed using:
-- Frontend: Vercel, Netlify, or any static hosting
-- Backend: Heroku, DigitalOcean, or AWS
-- Database: Managed PostgreSQL service
+The application is designed to work seamlessly across devices:
+- Mobile-first approach
+- Responsive breakpoints for all screen sizes
+- Touch-friendly interface
 
-## 📚 Documentation
+## 🧪 Testing
 
-For detailed documentation, please refer to:
-- [Frontend Documentation](./frontend/README.md)
+### Backend Tests
+```bash
+cd backend
+npm test
+```
+
+### Frontend Tests
+```bash
+cd frontend
+npm test
+```
+
+## 📦 Deployment
+
+### Backend Deployment
+```bash
+cd backend
+npm run build
+npm start
+```
+
+### Frontend Deployment
+```bash
+cd frontend
+npm run build
+```
+
+## 📚 Additional Resources
+
 - [Backend Documentation](./backend/README.md)
+- [Frontend Documentation](./frontend/README.md)
+- [API Documentation](./backend/README.md#-api-endpoints)
 
-## 🤝 Contributing
+## 👥 Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🙏 Acknowledgments
 
-- Icons by [Heroicons](https://heroicons.com/)
-- Avatars by [DiceBear](https://www.dicebear.com/)
-- Design inspiration from modern web applications
+- Thanks to all contributors who have helped shape this project
+- Inspired by the challenges of roommate coordination

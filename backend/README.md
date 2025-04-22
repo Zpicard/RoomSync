@@ -8,25 +8,19 @@ This is the backend service for RoomSync, built with Node.js, Express, and TypeS
 - **Node.js**: Runtime environment
 - **Express**: Web framework
 - **TypeScript**: For type safety
-- **PostgreSQL**: Primary database
 - **Prisma**: ORM for database operations
+- **SQLite**: Database
 
 ### Authentication & Security
 - **JWT**: For authentication
 - **bcrypt**: For password hashing
 - **express-validator**: For input validation
-- **helmet**: For security headers
 - **cors**: For CORS management
-
-### Real-time Features
-- **Socket.io**: For real-time communication
-- **Redis**: For session management (optional)
 
 ### Development Tools
 - **nodemon**: For development
-- **ESLint**: For code linting
-- **Prettier**: For code formatting
-- **Jest**: For testing
+- **TypeScript**: For type safety
+- **Prisma**: For database operations
 
 ## 📁 Project Structure
 
@@ -35,18 +29,20 @@ backend/
 ├── src/
 │   ├── controllers/        # Request handlers
 │   ├── middleware/         # Custom middleware
-│   ├── models/            # Data models
 │   ├── routes/            # API routes
-│   ├── services/          # Business logic
-│   ├── utils/             # Utility functions
 │   ├── types/             # TypeScript types
-│   └── config/            # Configuration
+│   └── utils/             # Utility functions
 ├── prisma/                # Database schema
-├── tests/                 # Test files
-└── uploads/               # File uploads
+└── .env                   # Environment variables
 ```
 
 ## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v14 or higher)
+- npm (v6 or higher)
+
+### Installation
 
 1. **Install Dependencies**
    ```bash
@@ -55,20 +51,22 @@ backend/
 
 2. **Set Up Environment Variables**
    ```bash
-   cp .env.example .env
+   # Create a .env file in the backend directory
+   touch .env
    ```
-   Configure the following variables:
-   - `DATABASE_URL`: PostgreSQL connection string
-   - `JWT_SECRET`: Secret for JWT tokens
-   - `PORT`: Server port
-   - `NODE_ENV`: Environment (development/production)
+   
+   Add the following to your `.env` file:
+   ```
+   DATABASE_URL="file:../dev.db"
+   JWT_SECRET="your-secret-key"
+   ```
 
-3. **Set Up Database**
+3. **Initialize Database**
    ```bash
    # Generate Prisma client
    npx prisma generate
 
-   # Run migrations
+   # Run migrations to create the SQLite database
    npx prisma migrate dev
    ```
 
@@ -83,40 +81,43 @@ backend/
 ```
 POST /api/auth/register     # Register new user
 POST /api/auth/login        # User login
-POST /api/auth/logout       # User logout
 GET  /api/auth/me          # Get current user
 ```
 
 ### Household Management
 ```
 POST   /api/households           # Create household
-GET    /api/households/:id       # Get household
-PUT    /api/households/:id       # Update household
-DELETE /api/households/:id       # Delete household
-POST   /api/households/:id/join  # Join household
+GET    /api/households           # Get all households
+GET    /api/households/:id       # Get household details
+POST   /api/households/join      # Join household
+POST   /api/households/:id/leave # Leave household
+POST   /api/households/:id/disband # Disband household
+POST   /api/households/:id/transfer-ownership # Transfer ownership
+POST   /api/households/:id/kick/:memberId # Kick member
+POST   /api/households/:id/invite # Invite member
 ```
 
-### Chore Management
+### Task Management
 ```
-POST   /api/chores              # Create chore
-GET    /api/chores/household/:id # Get household chores
-PUT    /api/chores/:id          # Update chore
-DELETE /api/chores/:id          # Delete chore
+POST   /api/tasks              # Create task
+GET    /api/tasks/household/:id # Get household tasks
+PATCH  /api/tasks/:id/status   # Update task status
+PATCH  /api/tasks/:id/assign   # Assign task
+DELETE /api/tasks/:id          # Delete task
 ```
 
 ### Guest Management
 ```
-POST   /api/guests              # Create guest event
-GET    /api/guests/household/:id # Get household guests
-PUT    /api/guests/:id          # Update guest event
-DELETE /api/guests/:id          # Delete guest event
+POST   /api/guests              # Create guest announcement
+GET    /api/guests/household/:id # Get household guest announcements
+PATCH  /api/guests/:id          # Update guest announcement
+DELETE /api/guests/:id          # Delete guest announcement
 ```
 
 ### Quiet Time Management
 ```
 POST   /api/quiet-times         # Create quiet time
 GET    /api/quiet-times/household/:id # Get household quiet times
-PUT    /api/quiet-times/:id     # Update quiet time
 DELETE /api/quiet-times/:id     # Delete quiet time
 ```
 
@@ -126,12 +127,12 @@ DELETE /api/quiet-times/:id     # Delete quiet time
 1. User registers/logs in
 2. Server validates credentials
 3. JWT token generated and sent
-4. Token stored in HTTP-only cookie
+4. Token stored in localStorage
 5. Token validated on protected routes
 
 ### Password Security
 ```typescript
-// Password hashing
+// Password hashing using bcrypt
 const hashedPassword = await bcrypt.hash(password, 10);
 
 // Password verification
@@ -148,67 +149,11 @@ const validateUser = [
 ];
 ```
 
-## 📊 Database Schema
-
-### User Model
-```prisma
-model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  username      String    @unique
-  password      String
-  householdId   String?
-  household     Household? @relation(fields: [householdId], references: [id])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
-```
-
-### Household Model
-```prisma
-model Household {
-  id        String   @id @default(uuid())
-  name      String
-  users     User[]
-  chores    Chore[]
-  guests    GuestEvent[]
-  quietTimes QuietTime[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-```
-
-## 🔄 Real-time Features
-
-### WebSocket Events
-```typescript
-// Server-side
-io.on('connection', (socket) => {
-  socket.on('join-household', (householdId) => {
-    socket.join(`household:${householdId}`);
-  });
-
-  socket.on('new-chore', (data) => {
-    io.to(`household:${data.householdId}`).emit('chore-added', data);
-  });
-});
-```
-
 ## 🧪 Testing
 
 ### Unit Tests
 ```bash
-npm run test
-```
-
-### Integration Tests
-```bash
-npm run test:integration
-```
-
-### Test Coverage
-```bash
-npm run test:coverage
+npm test
 ```
 
 ## 📦 Deployment
@@ -229,18 +174,8 @@ npm start
 - AWS
 - Google Cloud Platform
 
-## 🔍 Monitoring & Logging
-
-- Error tracking
-- Performance monitoring
-- Request logging
-- Database query logging
-- WebSocket event logging
-
 ## 📚 Additional Resources
 
 - [Express Documentation](https://expressjs.com/)
 - [Prisma Documentation](https://www.prisma.io/docs/)
-- [Socket.io Documentation](https://socket.io/docs/)
-- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
-- [JWT Documentation](https://jwt.io/introduction) 
+- [SQLite Documentation](https://www.sqlite.org/docs.html) 
