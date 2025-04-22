@@ -4,4 +4,14 @@ export interface User {
   email: string;
   householdId?: string;
   avatarUrl?: string;
+  bio?: string | null;
+  household?: {
+    id: string;
+    name: string;
+    code: string;
+    isPrivate: boolean;
+    createdAt: string;
+    updatedAt: string;
+    ownerId: string;
+  };
 } 

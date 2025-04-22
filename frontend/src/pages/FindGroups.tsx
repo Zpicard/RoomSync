@@ -15,6 +15,13 @@ interface Group {
     id: string;
     username: string;
   }[];
+  isUserMember: boolean;
+  memberCount: number;
+}
+
+interface HouseholdsResponse {
+  currentHouseholdId: string | null;
+  households: Group[];
 }
 
 interface HouseholdResponse {
@@ -29,6 +36,7 @@ const FindGroups = () => {
   const [loading, setLoading] = useState(true);
   const [showJoinConfirm, setShowJoinConfirm] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [currentHouseholdId, setCurrentHouseholdId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
 
@@ -39,7 +47,9 @@ const FindGroups = () => {
   const fetchGroups = async () => {
     try {
       const response = await household.getAll();
-      setGroups(response.data as Group[]);
+      const { households, currentHouseholdId } = response.data as HouseholdsResponse;
+      setGroups(households);
+      setCurrentHouseholdId(currentHouseholdId);
     } catch (error) {
       toast.error('Failed to fetch groups');
     } finally {
@@ -49,24 +59,35 @@ const FindGroups = () => {
 
   const handleJoinClick = (group: Group) => {
     // Check if user is already a member of this group
-    if (user?.householdId === group.id) {
+    if (group.isUserMember) {
       toast.error('You are already a member of this group');
       return;
     }
 
-    // Check if user is a leader of another group
-    if (user?.householdId) {
-      // Find the user's current group
-      const currentGroup = groups.find(g => g.id === user.householdId);
-      if (currentGroup && currentGroup.ownerId === user.id) {
-        toast.error('You are the leader of another group. Please disband it first before joining a new group.');
-        return;
-      }
+    // If user is already in a group, redirect them to profile
+    if (currentHouseholdId) {
+      toast.error('Please go to your profile to leave or disband your current group first');
+      navigate('/profile');
+      return;
     }
 
     // Show confirmation dialog
     setSelectedGroup(group);
     setShowJoinConfirm(true);
+  };
+
+  const handleLeaveCurrentHousehold = async () => {
+    if (!currentHouseholdId) return false;
+    
+    try {
+      await household.leave(currentHouseholdId);
+      toast.success('Successfully left your current group');
+      return true;
+    } catch (error) {
+      console.error('Error leaving household:', error);
+      toast.error('Failed to leave your current group');
+      return false;
+    }
   };
 
   const handleJoinGroup = async () => {
@@ -85,8 +106,18 @@ const FindGroups = () => {
       toast.success('Successfully joined the group!');
       navigate('/dashboard');
     } catch (error: any) {
-      if (error.response?.status === 400 && error.response?.data?.error === 'You are already a member of a household') {
-        toast.error('You are already a member of another group. Please leave it first.');
+      console.error('Error joining group:', error);
+      
+      if (error.response?.status === 400) {
+        if (error.response?.data?.error === 'You are already a member of a household') {
+          toast.error('Please go to your profile to leave your current group first');
+          navigate('/profile');
+        } else if (error.response?.data?.error?.includes('leader of another group')) {
+          toast.error('Please go to your profile to disband your current group first');
+          navigate('/profile');
+        } else {
+          toast.error(error.response?.data?.error || 'Failed to join group');
+        }
       } else {
         toast.error('Failed to join group');
       }
@@ -122,20 +153,29 @@ const FindGroups = () => {
             {groups.map((group) => (
               <motion.div
                 key={group.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
+                className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden ${
+                  group.isUserMember ? 'ring-2 ring-primary-500' : ''
+                }`}
                 whileHover={{ scale: 1.02 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-semibold">{group.name}</h2>
-                    <span className={`px-3 py-1 rounded-full text-sm ${
-                      group.isPrivate 
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    }`}>
-                      {group.isPrivate ? 'Private' : 'Public'}
-                    </span>
+                    <div className="flex gap-2">
+                      {group.isUserMember && (
+                        <span className="px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
+                          Current Group
+                        </span>
+                      )}
+                      <span className={`px-3 py-1 rounded-full text-sm ${
+                        group.isPrivate 
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      }`}>
+                        {group.isPrivate ? 'Private' : 'Public'}
+                      </span>
+                    </div>
                   </div>
                   
                   <div className="mb-4">
@@ -154,13 +194,19 @@ const FindGroups = () => {
 
                   <button
                     onClick={() => handleJoinClick(group)}
-                    className="w-full px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors duration-200"
-                    disabled={group.isPrivate || user?.householdId === group.id}
+                    className={`w-full px-4 py-2 rounded-lg transition-colors duration-200 ${
+                      group.isUserMember
+                        ? 'bg-gray-100 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
+                        : group.isPrivate
+                        ? 'bg-gray-200 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
+                        : 'bg-primary-500 text-white hover:bg-primary-600'
+                    }`}
+                    disabled={group.isPrivate || group.isUserMember}
                   >
                     {group.isPrivate 
                       ? 'Private Group' 
-                      : user?.householdId === group.id 
-                        ? 'Already a Member' 
+                      : group.isUserMember 
+                        ? 'Current Group' 
                         : 'Join Group'}
                   </button>
                 </div>
@@ -194,7 +240,7 @@ const FindGroups = () => {
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         Are you sure you want to join the group "{selectedGroup.name}"?
                       </p>
-                      {user?.householdId && (
+                      {currentHouseholdId && (
                         <p className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
                           Note: You will leave your current group if you join this one.
                         </p>

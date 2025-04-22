@@ -65,12 +65,40 @@ const Guests: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     try {
       if (!user?.householdId) {
         toast.error('No household selected');
         return;
       }
 
+      // Validate required fields
+      if (!formData.guestCount || formData.guestCount < 1) {
+        toast.error('Please enter a valid number of guests (minimum 1)');
+        return;
+      }
+
+      if (!formData.startTime || !formData.endTime) {
+        toast.error('Please select both start and end times');
+        return;
+      }
+
+      const startDate = new Date(formData.startTime);
+      const endDate = new Date(formData.endTime);
+      const now = new Date();
+
+      // Validate dates
+      if (startDate < now) {
+        toast.error('Start time cannot be in the past');
+        return;
+      }
+
+      if (endDate <= startDate) {
+        toast.error('End time must be after start time');
+        return;
+      }
+
+      // Proceed with creation
       await guests.create(user.householdId, formData);
       toast.success('Guest event added successfully');
       setShowAddModal(false);
@@ -81,9 +109,10 @@ const Guests: React.FC = () => {
         description: '',
       });
       fetchGuestEvents();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding guest event:', error);
-      toast.error('Failed to add guest event');
+      const errorMessage = error.response?.data?.error || 'Failed to add guest event';
+      toast.error(errorMessage);
     }
   };
 

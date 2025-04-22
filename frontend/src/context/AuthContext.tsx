@@ -42,9 +42,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData = response.data as User;
           console.log('Profile fetch response:', userData);
           
+          // Handle the case where household is an object instead of just an ID
+          if (userData.household && typeof userData.household === 'object') {
+            userData.householdId = userData.household.id;
+            console.log('Extracted householdId from household object:', userData.householdId);
+          }
+          
           // If we have a saved householdId and the user doesn't have one, use the saved one
           if (savedHouseholdId && !userData.householdId) {
             userData.householdId = savedHouseholdId;
+            console.log('Using saved householdId:', savedHouseholdId);
           }
           
           setUser(userData);
@@ -53,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Save householdId if it exists
           if (userData.householdId) {
             localStorage.setItem('householdId', userData.householdId);
+            console.log('Saved householdId to localStorage:', userData.householdId);
           }
         }
       } catch (error) {
@@ -73,6 +81,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       const response = await auth.login(email, password);
       const { token, user } = response.data as AuthResponse;
+      
+      // Handle the case where household is an object instead of just an ID
+      if (user.household && typeof user.household === 'object') {
+        user.householdId = user.household.id;
+      }
       
       localStorage.setItem('token', token);
       setToken(token);
@@ -96,6 +109,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       const response = await auth.register(username, email, password);
       const { token, user } = response.data as AuthResponse;
+      
+      // Handle the case where household is an object instead of just an ID
+      if (user.household && typeof user.household === 'object') {
+        user.householdId = user.household.id;
+      }
       
       // Set token first
       setToken(token);
@@ -130,6 +148,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUser = (updatedUser: User) => {
+    // Handle the case where household is an object instead of just an ID
+    if (updatedUser.household && typeof updatedUser.household === 'object') {
+      updatedUser.householdId = updatedUser.household.id;
+    }
+    
     setUser(updatedUser);
     
     // Update householdId in localStorage if it changed

@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../middleware/error';
 
@@ -167,7 +167,7 @@ export const getHouseholdTasks = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const deleteTask = async (req: AuthRequest, res: Response) => {
+export const deleteTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { taskId } = req.params;
     const userId = req.user?.id;
@@ -176,26 +176,52 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
       throw new AppError('Authentication required', 401);
     }
 
+    if (!taskId) {
+      throw new AppError('Task ID is required', 400);
+    }
+
     const task = await prisma.cleaningTask.findUnique({
       where: { id: taskId },
-      include: { household: { include: { owner: true } } }
+      include: { 
+        household: { 
+          include: { 
+            owner: true,
+            members: true
+          } 
+        },
+        createdBy: true,
+        assignedTo: true
+      }
     });
 
     if (!task) {
       throw new AppError('Task not found', 404);
     }
 
-    if (task.createdById !== userId && task.household.ownerId !== userId) {
-      throw new AppError('Not authorized to delete this task', 403);
+    // Check if user is a member of the household
+    const isHouseholdMember = task.household.members.some(member => member.id === userId);
+    if (!isHouseholdMember) {
+      throw new AppError('You must be a member of the household to delete tasks', 403);
+    }
+
+    // Check if user is authorized to delete the task
+    const isTaskCreator = task.createdById === userId;
+    const isHouseholdOwner = task.household.ownerId === userId;
+    const isAssignedUser = task.assignedToId === userId;
+
+    if (!isTaskCreator && !isHouseholdOwner && !isAssignedUser) {
+      throw new AppError('Not authorized to delete this task - must be the task creator, assigned user, or household owner', 403);
     }
 
     await prisma.cleaningTask.delete({
       where: { id: taskId }
     });
 
-    res.json({ message: 'Task deleted successfully' });
+    res.json({ 
+      success: true,
+      message: 'Task deleted successfully' 
+    });
   } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error deleting task', 500);
+    next(error);
   }
 }; 
