@@ -194,7 +194,11 @@ export const leaveHousehold = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (!householdId) {
+      return res.status(400).json({ error: 'Household ID is required' });
     }
 
     // Get the household to check if user is the owner
@@ -204,7 +208,7 @@ export const leaveHousehold = async (req: AuthRequest, res: Response) => {
     });
 
     if (!household) {
-      return res.status(404).json({ message: 'Household not found' });
+      return res.status(404).json({ error: 'Household not found' });
     }
 
     // Check if user is a member of the household
@@ -219,27 +223,53 @@ export const leaveHousehold = async (req: AuthRequest, res: Response) => {
     if (household.ownerId === userId) {
       if (household.members.length > 1) {
         return res.status(400).json({ 
-          message: 'Cannot leave household while you are the owner and there are other members. Please transfer ownership first.' 
+          error: 'Cannot leave household while you are the owner and there are other members. Please transfer ownership first or disband the group.' 
         });
       }
       
       // If user is the owner and the only member, delete the household
-      await prisma.household.delete({
-        where: { id: householdId }
-      });
+      try {
+        await prisma.$transaction(async (prisma) => {
+          // Delete all related data first
+          await prisma.cleaningTask.deleteMany({
+            where: { householdId }
+          });
+          
+          await prisma.guestAnnouncement.deleteMany({
+            where: { householdId }
+          });
+          
+          await prisma.householdInvite.deleteMany({
+            where: { householdId }
+          });
+          
+          // Finally delete the household
+          await prisma.household.delete({
+            where: { id: householdId }
+          });
+        });
+      } catch (error) {
+        console.error('Error deleting household:', error);
+        return res.status(500).json({ error: 'Failed to delete household. Please try again.' });
+      }
     } else {
       // Otherwise, just remove the user from the household
-      await prisma.user.update({
-        where: { id: userId },
-        data: { householdId: null }
-      });
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { householdId: null }
+        });
+      } catch (error) {
+        console.error('Error removing user from household:', error);
+        return res.status(500).json({ error: 'Failed to leave household. Please try again.' });
+      }
     }
 
     // Send success response
     res.json({ message: 'Successfully left household' });
   } catch (error) {
     console.error('Error leaving household:', error);
-    res.status(500).json({ message: 'Error leaving household. Please try again.' });
+    res.status(500).json({ error: 'An unexpected error occurred. Please try again.' });
   }
 };
 
@@ -300,11 +330,11 @@ export const transferOwnership = async (req: AuthRequest, res: Response) => {
     const currentOwnerId = req.user?.id;
 
     if (!currentOwnerId) {
-      throw new AppError('Authentication required', 401);
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
     if (!householdId || !newOwnerId) {
-      throw new AppError('Missing required parameters', 400);
+      return res.status(400).json({ error: 'Household ID and new owner ID are required' });
     }
 
     // Get the household to check if user is the owner
@@ -314,35 +344,40 @@ export const transferOwnership = async (req: AuthRequest, res: Response) => {
     });
 
     if (!household) {
-      throw new AppError('Household not found', 404);
+      return res.status(404).json({ error: 'Household not found' });
     }
 
     // Check if current user is the owner
     if (household.ownerId !== currentOwnerId) {
-      console.log('Ownership check failed:', { 
-        householdOwnerId: household.ownerId, 
-        currentUserId: currentOwnerId 
-      });
-      throw new AppError('Only the owner can transfer ownership', 403);
+      return res.status(403).json({ error: 'Only the owner can transfer ownership' });
     }
 
     // Check if new owner is a member of the household
     const isMember = household.members.some(member => member.id === newOwnerId);
     if (!isMember) {
-      throw new AppError('New owner must be a member of the household', 400);
+      return res.status(400).json({ error: 'New owner must be a member of the household' });
     }
 
-    // Transfer ownership
-    await prisma.household.update({
-      where: { id: householdId },
-      data: { ownerId: newOwnerId }
-    });
+    // Check if trying to transfer to self
+    if (newOwnerId === currentOwnerId) {
+      return res.status(400).json({ error: 'Cannot transfer ownership to yourself' });
+    }
 
-    res.json({ message: 'Ownership transferred successfully' });
+    try {
+      // Transfer ownership
+      await prisma.household.update({
+        where: { id: householdId },
+        data: { ownerId: newOwnerId }
+      });
+
+      res.json({ message: 'Ownership transferred successfully' });
+    } catch (error) {
+      console.error('Error transferring ownership:', error);
+      return res.status(500).json({ error: 'Failed to transfer ownership. Please try again.' });
+    }
   } catch (error) {
-    if (error instanceof AppError) throw error;
-    console.error('Error transferring ownership:', error);
-    throw new AppError('Error transferring ownership. Please try again.', 500);
+    console.error('Error in transfer ownership:', error);
+    res.status(500).json({ error: 'An unexpected error occurred. Please try again.' });
   }
 };
 
@@ -352,7 +387,11 @@ export const disbandHousehold = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (!householdId) {
+      return res.status(400).json({ error: 'Household ID is required' });
     }
 
     // Get the household to check if user is the owner
@@ -362,12 +401,12 @@ export const disbandHousehold = async (req: AuthRequest, res: Response) => {
     });
 
     if (!household) {
-      return res.status(404).json({ message: 'Household not found' });
+      return res.status(404).json({ error: 'Household not found' });
     }
 
     // Check if user is the owner
     if (household.ownerId !== userId) {
-      return res.status(403).json({ message: 'Only the owner can disband the household' });
+      return res.status(403).json({ error: 'Only the owner can disband the household' });
     }
 
     try {
@@ -401,8 +440,8 @@ export const disbandHousehold = async (req: AuthRequest, res: Response) => {
       });
 
       res.json({ message: 'Household disbanded successfully' });
-    } catch (transactionError) {
-      console.error('Transaction error when disbanding household:', transactionError);
+    } catch (error) {
+      console.error('Error disbanding household:', error);
       
       // If the transaction fails, try to at least remove members from the household
       try {
@@ -416,13 +455,12 @@ export const disbandHousehold = async (req: AuthRequest, res: Response) => {
         });
       } catch (fallbackError) {
         console.error('Fallback error when removing members:', fallbackError);
-        throw new AppError('Failed to disband household and remove members', 500);
+        return res.status(500).json({ error: 'Failed to disband household. Please try again.' });
       }
     }
   } catch (error) {
-    console.error('Error disbanding household:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error disbanding household. Please try again.', 500);
+    console.error('Error in disband household:', error);
+    res.status(500).json({ error: 'An unexpected error occurred. Please try again.' });
   }
 };
 
@@ -578,7 +616,9 @@ export const getAllHouseholds = async (req: AuthRequest, res: Response) => {
     // Get all households
     const households = await prisma.household.findMany({
       where: {
-        isPrivate: false // Only show public households
+        members: {
+          some: {} // Only include households that have at least one member
+        }
       },
       include: {
         members: {

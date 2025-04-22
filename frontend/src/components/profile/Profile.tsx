@@ -74,15 +74,12 @@ const Profile: React.ComponentType = () => {
       setLoading(true);
       setError(null);
       
-      console.log('Attempting to leave household:', user.householdId);
-      
       // Call API to leave household
       await household.leave(user.householdId);
       
       // Update user context - remove householdId
       if (user) {
         const updatedUser = { ...user, householdId: undefined };
-        console.log('Updating user context:', updatedUser);
         updateUser(updatedUser);
         setHouseholdInfo(null);
         
@@ -91,13 +88,19 @@ const Profile: React.ComponentType = () => {
       }
       
       setShowLeaveConfirm(false);
-      toast.success('Successfully left group');
+      toast.success('Successfully left the group');
       navigate('/');
     } catch (error: any) {
       console.error('Error leaving group:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to leave group. Please try again.';
+      const errorMessage = error.response?.data?.error || 'Failed to leave group. Please try again.';
       setError(errorMessage);
       toast.error(errorMessage);
+      
+      // If the error is about being the owner, show a more helpful message
+      if (errorMessage.includes('owner') && errorMessage.includes('transfer ownership')) {
+        toast.error('As the group owner, you need to transfer ownership or disband the group before leaving.');
+      }
+      
       setShowLeaveConfirm(false);
     } finally {
       setLoading(false);
@@ -124,7 +127,7 @@ const Profile: React.ComponentType = () => {
       setHouseholdInfo(response.data as HouseholdInfo);
     } catch (error: any) {
       console.error('Error transferring ownership:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to transfer ownership. Please try again.';
+      const errorMessage = error.response?.data?.error || 'Failed to transfer ownership. Please try again.';
       setError(errorMessage);
       toast.error(errorMessage);
       setShowTransferConfirm(false);
@@ -143,16 +146,12 @@ const Profile: React.ComponentType = () => {
       setLoading(true);
       setError(null);
       
-      console.log('Attempting to disband household:', user.householdId);
-      
       // Call API to disband household
-      const response = await household.disband(user.householdId);
-      console.log('Disband household response:', response);
+      await household.disband(user.householdId);
       
       // Update user context - remove householdId
       if (user) {
         const updatedUser = { ...user, householdId: undefined };
-        console.log('Updating user context:', updatedUser);
         updateUser(updatedUser);
         setHouseholdInfo(null);
         
@@ -165,7 +164,7 @@ const Profile: React.ComponentType = () => {
       navigate('/');
     } catch (error: any) {
       console.error('Error disbanding group:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to disband group. Please try again.';
+      const errorMessage = error.response?.data?.error || 'Failed to disband group. Please try again.';
       setError(errorMessage);
       toast.error(errorMessage);
       setShowDisbandConfirm(false);

@@ -66,53 +66,109 @@ const GroupMembers: React.FC = () => {
       return;
     }
 
+    if (!user?.householdId) {
+      toast.error('You are not a member of any group');
+      return;
+    }
+
     try {
-      await household.invite(user?.householdId!, inviteEmail);
+      setLoading(true);
+      await household.invite(user.householdId, inviteEmail);
       toast.success('Invitation sent successfully');
       setShowInviteModal(false);
       setInviteEmail('');
+      
+      // Refresh group info
+      const response = await household.getDetails(user.householdId);
+      setGroupInfo(response.data as GroupInfo);
     } catch (error: any) {
+      console.error('Error sending invitation:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to send invitation. Please try again.';
+      
       // Handle specific error cases
       if (error.response?.status === 404) {
         toast.error('User not found. Please make sure they have registered for the app.');
       } else if (error.response?.status === 400) {
-        toast.error(error.response?.data?.error || 'Invalid email address');
+        toast.error(errorMessage);
       } else {
         toast.error('Failed to send invitation. Please try again.');
       }
-      console.error('Error sending invitation:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleRemoveMember = async (memberId: string) => {
+    if (!user?.householdId) {
+      toast.error('You are not a member of any group');
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to remove this member?')) {
       return;
     }
 
     try {
-      await household.kickMember(user?.householdId!, memberId);
+      setLoading(true);
+      await household.kickMember(user.householdId, memberId);
       toast.success('Member removed successfully');
+      
       // Refresh group info
-      const response = await household.getDetails(user?.householdId!);
+      const response = await household.getDetails(user.householdId);
       setGroupInfo(response.data as GroupInfo);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to remove member');
+      console.error('Error removing member:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to remove member. Please try again.';
+      
+      if (error.response?.status === 403) {
+        toast.error('Only the group owner can remove members.');
+      } else if (error.response?.status === 404) {
+        toast.error('Member not found in this group.');
+      } else {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleTransferOwnership = async (memberId: string) => {
+    if (!user?.householdId) {
+      toast.error('You are not a member of any group');
+      return;
+    }
+
     if (!window.confirm('Are you sure you want to transfer ownership to this member?')) {
       return;
     }
 
     try {
-      await household.transferOwnership(user?.householdId!, memberId);
+      setLoading(true);
+      await household.transferOwnership(user.householdId, memberId);
       toast.success('Ownership transferred successfully');
+      
       // Refresh group info
-      const response = await household.getDetails(user?.householdId!);
+      const response = await household.getDetails(user.householdId);
       setGroupInfo(response.data as GroupInfo);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to transfer ownership');
+      console.error('Error transferring ownership:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to transfer ownership. Please try again.';
+      
+      if (error.response?.status === 403) {
+        toast.error('Only the group owner can transfer ownership.');
+      } else if (error.response?.status === 400) {
+        if (errorMessage.includes('yourself')) {
+          toast.error('You cannot transfer ownership to yourself.');
+        } else if (errorMessage.includes('member')) {
+          toast.error('The selected user must be a member of the group.');
+        } else {
+          toast.error(errorMessage);
+        }
+      } else {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
