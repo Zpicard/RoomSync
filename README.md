@@ -1,97 +1,130 @@
-# RoomSync - Roommate Coordination App
+# RoomSync - Modern Roommate Coordination Platform
 
-RoomSync is a modern web application designed to help roommates coordinate their living arrangements, manage chores, schedule quiet hours, and track guest visits. Built with React, TypeScript, and Tailwind CSS, it provides a beautiful and intuitive interface for roommate communication and coordination.
+RoomSync is a comprehensive web application designed to streamline roommate coordination and enhance living arrangements. It provides an intuitive platform for managing shared responsibilities, scheduling quiet hours, coordinating guest visits, and maintaining clear communication among roommates.
 
-## Features
+## 🌟 Key Features
 
-- **Dashboard**: Overview of weekly chores, today's events, and quick access to other sections
-- **Chores Tracker**: Assign and track chores with a weekly calendar view
-- **Guest Schedule**: Manage and view upcoming guest visits
-- **Quiet Time Calendar**: Schedule and track quiet hours, study sessions, and exam periods
-- **Roommate Profiles**: View and manage roommate information, preferences, and statistics
+- **Smart Dashboard**: Central hub for all household activities and upcoming events
+- **Chore Management**: Automated chore rotation and tracking system
+- **Guest Coordination**: Easy scheduling and management of guest visits
+- **Quiet Time Scheduling**: Coordinate study sessions and quiet hours
+- **Profile Management**: Individual profiles with preferences and statistics
+- **Real-time Updates**: Instant notifications for household activities
+- **Responsive Design**: Seamless experience across all devices
 
-## Tech Stack
+## 🚀 How It Works
 
-- React 18
+RoomSync operates on a modern client-server architecture:
+- Frontend: React-based SPA with real-time updates
+- Backend: Node.js/Express API with PostgreSQL database
+- Authentication: JWT-based secure authentication
+- Real-time: WebSocket integration for live updates
+
+## 💻 Technologies Used
+
+### Frontend
+- React 18 with TypeScript
+- Tailwind CSS for styling
+- Framer Motion for animations
+- React Query for data fetching
+- Socket.io-client for real-time features
+
+### Backend
+- Node.js with Express
 - TypeScript
-- Tailwind CSS
-- Framer Motion (for animations)
-- React Router (for navigation)
-- Heroicons (for icons)
+- PostgreSQL with Prisma ORM
+- JWT Authentication
+- Socket.io for real-time communication
 
-## Getting Started
+## 🛠️ Getting Started
 
-1. Clone the repository:
+1. **Clone the Repository**
    ```bash
    git clone https://github.com/yourusername/roomsync.git
    cd roomsync
    ```
 
-2. Install dependencies:
+2. **Set Up Environment**
+   - Copy `.env.example` to `.env` in both frontend and backend directories
+   - Configure your environment variables
+
+3. **Install Dependencies**
    ```bash
+   # Install root dependencies
+   npm install
+
+   # Install frontend dependencies
+   cd frontend
+   npm install
+
+   # Install backend dependencies
+   cd ../backend
    npm install
    ```
 
-3. Start the development server:
+4. **Start Development Servers**
    ```bash
+   # Start backend server
+   cd backend
+   npm run dev
+
+   # Start frontend server (in a new terminal)
+   cd frontend
    npm start
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+5. **Access the Application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5000
 
-## Project Structure
+## 📱 Using RoomSync
 
-```
-src/
-  ├── components/
-  │   ├── layout/
-  │   │   ├── Layout.tsx
-  │   │   └── Navbar.tsx
-  │   ├── dashboard/
-  │   │   └── Dashboard.tsx
-  │   ├── chores/
-  │   │   └── Chores.tsx
-  │   ├── guests/
-  │   │   └── Guests.tsx
-  │   ├── quiet-time/
-  │   │   └── QuietTime.tsx
-  │   └── profiles/
-  │       └── Profiles.tsx
-  ├── hooks/
-  ├── types/
-  ├── utils/
-  ├── App.tsx
-  └── index.tsx
-```
+1. **Create an Account**
+   - Sign up with email or social login
+   - Create or join a household
 
-## Design System
+2. **Set Up Your Household**
+   - Add roommate information
+   - Configure household preferences
+   - Set up chore rotation
 
-The application uses a custom color palette with:
-- Primary colors: Soft greens for actions and success states
-- Secondary colors: Muted purples for accents and warnings
-- Neutral colors: Warm grays for text and backgrounds
+3. **Start Managing**
+   - Schedule chores
+   - Plan guest visits
+   - Coordinate quiet hours
+   - Track household activities
 
-Components follow a consistent design language with:
-- Rounded corners
-- Subtle shadows
-- Smooth animations
-- Responsive layouts
-- Clear typography hierarchy
+## 🔒 Security Features
 
-## Contributing
+- JWT-based authentication
+- Role-based access control
+- Secure password hashing
+- HTTPS encryption
+- Input validation and sanitization
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## 🌐 Deployment
 
-## License
+The application can be deployed using:
+- Frontend: Vercel, Netlify, or any static hosting
+- Backend: Heroku, DigitalOcean, or AWS
+- Database: Managed PostgreSQL service
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 📚 Documentation
 
-## Acknowledgments
+For detailed documentation, please refer to:
+- [Frontend Documentation](./frontend/README.md)
+- [Backend Documentation](./backend/README.md)
 
-- Icons provided by [Heroicons](https://heroicons.com/)
-- Avatars generated by [DiceBear](https://www.dicebear.com/)
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Icons by [Heroicons](https://heroicons.com/)
+- Avatars by [DiceBear](https://www.dicebear.com/)
 - Design inspiration from modern web applications
