@@ -40,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (storedToken) {
           const response = await auth.getProfile();
           const userData = response.data as User;
+          console.log('Profile fetch response:', userData);
           
           // If we have a saved householdId and the user doesn't have one, use the saved one
           if (savedHouseholdId && !userData.householdId) {

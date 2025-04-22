@@ -46,7 +46,7 @@ export const auth = {
   register: (username: string, email: string, password: string) =>
     apiClient.post('/auth/register', { username, email, password }),
   verifyToken: () => apiClient.get('/auth/verify'),
-  getProfile: () => apiClient.get('/auth/profile'),
+  getProfile: () => apiClient.get('/profile'),
 };
 
 interface HouseholdCreateInput {
