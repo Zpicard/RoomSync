@@ -9,7 +9,7 @@ This is the backend service for RoomSync, built with Node.js, Express, and TypeS
 - **Express**: Web framework
 - **TypeScript**: For type safety
 - **Prisma**: ORM for database operations
-- **SQLite**: Database
+- **PostgreSQL**: Database
 
 ### Authentication & Security
 - **JWT**: For authentication
@@ -41,6 +41,7 @@ backend/
 ### Prerequisites
 - Node.js (v14 or higher)
 - npm (v6 or higher)
+- PostgreSQL (v14 or higher)
 
 ### Installation
 
@@ -57,8 +58,10 @@ backend/
    
    Add the following to your `.env` file:
    ```
-   DATABASE_URL="file:../dev.db"
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/roomsync?schema=public"
    JWT_SECRET="your-secret-key"
+   PORT=8080
+   NODE_ENV=development
    ```
 
 3. **Initialize Database**
@@ -66,7 +69,7 @@ backend/
    # Generate Prisma client
    npx prisma generate
 
-   # Run migrations to create the SQLite database
+   # Run migrations to create the PostgreSQL database
    npx prisma migrate dev
    ```
 
@@ -178,4 +181,4 @@ npm start
 
 - [Express Documentation](https://expressjs.com/)
 - [Prisma Documentation](https://www.prisma.io/docs/)
-- [SQLite Documentation](https://www.sqlite.org/docs.html) 
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/) 

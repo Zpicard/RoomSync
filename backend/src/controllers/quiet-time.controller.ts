@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
-import { AppError } from '../utils/AppError';
+import { AppError } from '../middleware/error';
 
 const prisma = new PrismaClient();
 
@@ -58,7 +58,7 @@ export const createQuietTime = async (req: AuthRequest, res: Response, next: Nex
     }
 
     // Check for overlapping quiet times
-    const overlappingQuietTimes = await prisma.quietTime.findMany({
+    const overlappingQuietTime = await prisma.quietTime.findFirst({
       where: {
         householdId,
         OR: [
@@ -75,22 +75,11 @@ export const createQuietTime = async (req: AuthRequest, res: Response, next: Nex
             ]
           }
         ]
-      },
-      include: {
-        user: {
-          select: {
-            username: true
-          }
-        }
       }
     });
 
-    if (overlappingQuietTimes.length > 0) {
-      const conflict = overlappingQuietTimes[0];
-      throw new AppError(
-        `There is already a quiet time scheduled during this period (created by ${conflict.user.username})`,
-        409
-      );
+    if (overlappingQuietTime) {
+      throw new AppError('This time period overlaps with an existing quiet time', 400);
     }
 
     const quietTime = await prisma.quietTime.create({
@@ -100,21 +89,83 @@ export const createQuietTime = async (req: AuthRequest, res: Response, next: Nex
         startTime: startDate,
         endTime: endDate,
         description,
-        user: { connect: { id: userId } },
-        household: { connect: { id: householdId } }
+        householdId,
+        userId
       },
       include: {
-        user: true,
-        household: true
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true
+          }
+        }
       }
     });
 
-    res.status(201).json({
-      success: true,
-      data: quietTime
-    });
+    res.status(201).json(quietTime);
   } catch (error) {
-    next(error);
+    if (error instanceof AppError) {
+      next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
+    } else {
+      next(new AppError('An unexpected error occurred while creating quiet time', 500));
+    }
+  }
+};
+
+export const getQuietTimes = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { householdId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    if (!householdId) {
+      throw new AppError('Household ID is required', 400);
+    }
+
+    // Verify user is part of the household
+    const household = await prisma.household.findFirst({
+      where: {
+        id: householdId,
+        OR: [
+          { members: { some: { id: userId } } },
+          { ownerId: userId }
+        ]
+      }
+    });
+
+    if (!household) {
+      throw new AppError('You are not a member of this household', 403);
+    }
+
+    const quietTimes = await prisma.quietTime.findMany({
+      where: { householdId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true
+          }
+        }
+      },
+      orderBy: { startTime: 'asc' }
+    });
+
+    res.json(quietTimes);
+  } catch (error) {
+    if (error instanceof AppError) {
+      next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
+    } else {
+      next(new AppError('An unexpected error occurred while fetching quiet times', 500));
+    }
   }
 };
 
@@ -131,16 +182,15 @@ export const deleteQuietTime = async (req: AuthRequest, res: Response, next: Nex
       throw new AppError('Quiet time ID is required', 400);
     }
 
+    // Get the quiet time and verify user has permission to delete it
     const quietTime = await prisma.quietTime.findUnique({
       where: { id: quietTimeId },
       include: { 
-        household: { 
-          include: { 
-            owner: true,
+        household: {
+          include: {
             members: true
           }
-        },
-        user: true
+        }
       }
     });
 
@@ -148,30 +198,26 @@ export const deleteQuietTime = async (req: AuthRequest, res: Response, next: Nex
       throw new AppError('Quiet time not found', 404);
     }
 
-    // Check if user is a member of the household
-    const isHouseholdMember = quietTime.household.members.some(member => member.id === userId);
-    if (!isHouseholdMember) {
-      throw new AppError('You must be a member of the household to delete quiet times', 403);
-    }
+    // Verify user is part of the household
+    const isMember = quietTime.household.members.some(member => member.id === userId) ||
+                    quietTime.household.ownerId === userId;
 
-    // Check if user has permission to delete
-    const canDelete = 
-      quietTime.userId === userId || // Quiet time creator
-      quietTime.household.ownerId === userId; // Household owner
-
-    if (!canDelete) {
-      throw new AppError('You can only delete quiet times you created or if you are the household owner', 403);
+    if (!isMember) {
+      throw new AppError('You are not a member of this household', 403);
     }
 
     await prisma.quietTime.delete({
       where: { id: quietTimeId }
     });
 
-    res.json({ 
-      success: true,
-      message: 'Quiet time deleted successfully' 
-    });
+    res.json({ message: 'Quiet time deleted successfully' });
   } catch (error) {
-    next(error);
+    if (error instanceof AppError) {
+      next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
+    } else {
+      next(new AppError('An unexpected error occurred while deleting quiet time', 500));
+    }
   }
 }; 

@@ -18,7 +18,7 @@ RoomSync is a web application designed to help roommates coordinate tasks, manag
 - Express
 - TypeScript
 - Prisma ORM
-- SQLite Database
+- PostgreSQL Database
 - JWT Authentication
 - bcrypt for password hashing
 
@@ -36,6 +36,7 @@ RoomSync is a web application designed to help roommates coordinate tasks, manag
 
 - Node.js (v14 or higher)
 - npm (v6 or higher)
+- PostgreSQL (v14 or higher)
 
 ## 🚀 Getting Started
 
@@ -46,7 +47,17 @@ git clone https://github.com/yourusername/roommate-app.git
 cd roommate-app
 ```
 
-### 2. Backend Setup
+### 2. Start PostgreSQL
+
+```bash
+# Start PostgreSQL service
+brew services start postgresql@14
+
+# Create the database
+createdb roomsync
+```
+
+### 3. Backend Setup
 
 ```bash
 # Navigate to the backend directory
@@ -61,8 +72,10 @@ touch .env
 
 Add the following to your `.env` file:
 ```
-DATABASE_URL="file:../dev.db"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/roomsync?schema=public"
 JWT_SECRET="your-secret-key"
+PORT=8080
+NODE_ENV=development
 ```
 
 ```bash
@@ -74,7 +87,7 @@ npx prisma migrate dev
 npm run dev
 ```
 
-### 3. Frontend Setup
+### 4. Frontend Setup
 
 ```bash
 # Open a new terminal and navigate to the frontend directory
@@ -97,7 +110,7 @@ REACT_APP_API_URL=http://localhost:8080/api
 npm start
 ```
 
-### 4. Access the Application
+### 5. Access the Application
 
 Open your browser and navigate to:
 ```
@@ -183,19 +196,4 @@ npm run build
 - [Frontend Documentation](./frontend/README.md)
 - [API Documentation](./backend/README.md#-api-endpoints)
 
-## 👥 Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- Thanks to all contributors who have helped shape this project
-- Inspired by the challenges of roommate coordination

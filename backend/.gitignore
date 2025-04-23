@@ -14,6 +14,31 @@ build/
 # Database
 *.db
 *.db-journal
+# PostgreSQL specific
+*.sql
+*.dump
+*.backup
+*.gz
+*.tar
+*.zip
+*.bak
+*.tmp
+*.temp
+*.log
+*.pid
+*.lock
+*.socket
+*.sock
+*.pid.lock
+*.pid.sock
+*.pid.socket
+*.pid.tmp
+*.pid.temp
+*.pid.backup
+*.pid.gz
+*.pid.tar
+*.pid.zip
+*.pid.bak
 
 # IDE
 .idea/

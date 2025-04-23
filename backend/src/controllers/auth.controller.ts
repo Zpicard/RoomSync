@@ -10,6 +10,10 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   try {
     const { email, username, password } = req.body;
 
+    if (!email || !username || !password) {
+      throw new AppError('Email, username, and password are required', 400);
+    }
+
     // Check if user exists
     const existingUser = await prisma.user.findFirst({
       where: {
@@ -21,9 +25,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     });
 
     if (existingUser) {
-      return res.status(400).json({
-        error: 'Email or username already exists'
-      });
+      throw new AppError('Email or username already exists', 400);
     }
 
     // Hash password
@@ -57,8 +59,10 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
   } catch (error) {
     if (error instanceof AppError) {
       next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
     } else {
-      next(new AppError('Error creating user', 500));
+      next(new AppError('An unexpected error occurred during registration', 500));
     }
   }
 };
@@ -67,7 +71,11 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const { email, password } = req.body;
 
-    // Find user by email using findFirst instead of findUnique
+    if (!email || !password) {
+      throw new AppError('Email and password are required', 400);
+    }
+
+    // Find user by email
     const user = await prisma.user.findFirst({
       where: { email },
       include: {
@@ -76,13 +84,13 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      throw new AppError('Invalid email or password', 401);
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      throw new AppError('Invalid email or password', 401);
     }
 
     // Generate JWT token
@@ -106,8 +114,10 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   } catch (error) {
     if (error instanceof AppError) {
       next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
     } else {
-      next(new AppError('Error during login', 500));
+      next(new AppError('An unexpected error occurred during login', 500));
     }
   }
 }; 

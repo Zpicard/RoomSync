@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, User, Household } from '@prisma/client';
 import { AppError } from '../middleware/error';
 
 interface AuthRequest extends Request {
@@ -11,35 +11,98 @@ interface AuthRequest extends Request {
 
 const prisma = new PrismaClient();
 
-export const createTask = async (req: AuthRequest, res: Response) => {
+export const createTask = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { title, description, dueDate, assignedToId, householdId } = req.body;
-    const createdById = req.user?.id;
+    const { title, description, dueDate, householdId, assignedToId } = req.body;
+    const userId = req.user?.id;
 
-    if (!createdById) {
+    if (!userId) {
       throw new AppError('Authentication required', 401);
     }
 
-    const task = await prisma.cleaningTask.create({
-      data: {
-        title,
-        description,
-        dueDate: new Date(dueDate),
-        assignedTo: { connect: { id: assignedToId } },
-        createdBy: { connect: { id: createdById } },
-        household: { connect: { id: householdId } }
+    if (!title || !householdId) {
+      throw new AppError('Title and household ID are required', 400);
+    }
+
+    // Verify user is part of the household
+    const household = await prisma.household.findFirst({
+      where: {
+        id: householdId,
+        OR: [
+          { members: { some: { id: userId } } },
+          { ownerId: userId }
+        ]
+      }
+    });
+
+    if (!household) {
+      throw new AppError('You are not a member of this household', 403);
+    }
+
+    // If assignedToId is provided, verify they are a member of the household
+    if (assignedToId) {
+      const assignedUser = await prisma.user.findFirst({
+        where: {
+          id: assignedToId,
+          household: { id: householdId }
+        }
+      });
+
+      if (!assignedUser) {
+        throw new AppError('Assigned user is not a member of this household', 400);
+      }
+    }
+
+    const taskData: any = {
+      title,
+      description,
+      createdBy: {
+        connect: { id: userId }
       },
+      household: {
+        connect: { id: householdId }
+      }
+    };
+
+    if (assignedToId) {
+      taskData.assignedTo = {
+        connect: { id: assignedToId }
+      };
+    }
+
+    if (dueDate) {
+      taskData.dueDate = new Date(dueDate);
+    }
+
+    const task = await prisma.cleaningTask.create({
+      data: taskData,
       include: {
-        assignedTo: true,
-        createdBy: true,
-        household: true
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true
+          }
+        },
+        assignedTo: {
+          select: {
+            id: true,
+            username: true,
+            avatarUrl: true
+          }
+        }
       }
     });
 
     res.status(201).json(task);
   } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error creating task', 500);
+    if (error instanceof AppError) {
+      next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
+    } else {
+      next(new AppError('An unexpected error occurred while creating task', 500));
+    }
   }
 };
 
@@ -180,17 +243,15 @@ export const deleteTask = async (req: AuthRequest, res: Response, next: NextFunc
       throw new AppError('Task ID is required', 400);
     }
 
+    // Get the task and verify user has permission to delete it
     const task = await prisma.cleaningTask.findUnique({
       where: { id: taskId },
       include: { 
-        household: { 
-          include: { 
-            owner: true,
+        household: {
+          include: {
             members: true
-          } 
-        },
-        createdBy: true,
-        assignedTo: true
+          }
+        }
       }
     });
 
@@ -198,30 +259,26 @@ export const deleteTask = async (req: AuthRequest, res: Response, next: NextFunc
       throw new AppError('Task not found', 404);
     }
 
-    // Check if user is a member of the household
-    const isHouseholdMember = task.household.members.some(member => member.id === userId);
-    if (!isHouseholdMember) {
-      throw new AppError('You must be a member of the household to delete tasks', 403);
-    }
+    // Verify user is part of the household
+    const isMember = task.household.members.some((member: User) => member.id === userId) ||
+                    task.household.ownerId === userId;
 
-    // Check if user is authorized to delete the task
-    const isTaskCreator = task.createdById === userId;
-    const isHouseholdOwner = task.household.ownerId === userId;
-    const isAssignedUser = task.assignedToId === userId;
-
-    if (!isTaskCreator && !isHouseholdOwner && !isAssignedUser) {
-      throw new AppError('Not authorized to delete this task - must be the task creator, assigned user, or household owner', 403);
+    if (!isMember) {
+      throw new AppError('You are not a member of this household', 403);
     }
 
     await prisma.cleaningTask.delete({
       where: { id: taskId }
     });
 
-    res.json({ 
-      success: true,
-      message: 'Task deleted successfully' 
-    });
+    res.json({ message: 'Task deleted successfully' });
   } catch (error) {
-    next(error);
+    if (error instanceof AppError) {
+      next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
+    } else {
+      next(new AppError('An unexpected error occurred while deleting task', 500));
+    }
   }
 }; 

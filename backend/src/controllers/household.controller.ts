@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { PrismaClient, User, Household } from '@prisma/client';
 import { AppError } from '../middleware/error';
 import crypto from 'crypto';
@@ -16,68 +16,67 @@ const generateHouseholdCode = () => {
   return crypto.randomBytes(3).toString('hex').toUpperCase();
 };
 
-export const createHousehold = async (req: AuthRequest, res: Response) => {
+export const createHousehold = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { name, isPrivate } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Authentication required' });
+      throw new AppError('Authentication required', 401);
     }
 
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({ error: 'Household name is required' });
+    if (!name) {
+      throw new AppError('Household name is required', 400);
     }
 
     // Check if user already has a household
-    const existingUser = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { household: true }
-    });
-
-    if (existingUser?.household) {
-      return res.status(400).json({ error: 'You are already a member of a household' });
-    }
-
-    // Check if a household with the same name already exists
     const existingHousehold = await prisma.household.findFirst({
-      where: { name: name.trim() }
+      where: {
+        OR: [
+          { ownerId: userId },
+          { members: { some: { id: userId } } }
+        ]
+      }
     });
 
     if (existingHousehold) {
-      return res.status(400).json({ error: 'A group with this name already exists. Please choose a different name.' });
+      throw new AppError('User is already part of a household', 400);
     }
 
-    // Generate a unique code
-    const code = generateHouseholdCode();
+    // Generate unique code
+    const code = crypto.randomBytes(3).toString('hex').toUpperCase();
 
-    // Create the household and connect the user in a single transaction
-    const household = await prisma.$transaction(async (prisma) => {
-      // Create the household
-      const newHousehold = await prisma.household.create({
-        data: {
-          name: name.trim(),
-          code,
-          isPrivate: isPrivate === true,
-          ownerId: userId
+    const household = await prisma.household.create({
+      data: {
+        name,
+        code,
+        isPrivate: isPrivate || false,
+        ownerId: userId,
+        members: {
+          connect: { id: userId }
         }
-      });
-
-      // Update the user to connect them to the household
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          household: { connect: { id: newHousehold.id } }
+      },
+      include: {
+        members: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            avatarUrl: true
+          }
         }
-      });
-
-      return newHousehold;
+      }
     });
 
     res.status(201).json(household);
   } catch (error) {
-    console.error('Error creating household:', error);
-    return res.status(500).json({ error: 'Error creating household. Please try again.' });
+    if (error instanceof AppError) {
+      next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
+    } else {
+      next(new AppError('An unexpected error occurred while creating household', 500));
+    }
   }
 };
 
@@ -188,92 +187,62 @@ export const respondToInvite = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const leaveHousehold = async (req: AuthRequest, res: Response) => {
+export const leaveHousehold = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { householdId } = req.params;
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Authentication required' });
+      throw new AppError('Authentication required', 401);
     }
 
     if (!householdId) {
-      return res.status(400).json({ error: 'Household ID is required' });
+      throw new AppError('Household ID is required', 400);
     }
 
-    // Get the household to check if user is the owner
     const household = await prisma.household.findUnique({
       where: { id: householdId },
       include: { members: true }
     });
 
     if (!household) {
-      return res.status(404).json({ error: 'Household not found' });
+      throw new AppError('Household not found', 404);
     }
 
-    // Check if user is a member of the household
-    const isMember = household.members.some(member => member.id === userId);
-    
-    // If user is not a member, just return success
-    if (!isMember) {
-      return res.json({ message: 'Successfully left household' });
-    }
-
-    // If user is the owner, check if there are other members
+    // Check if user is the owner
     if (household.ownerId === userId) {
-      if (household.members.length > 1) {
-        return res.status(400).json({ 
-          error: 'Cannot leave household while you are the owner and there are other members. Please transfer ownership first or disband the group.' 
-        });
-      }
-      
-      // If user is the owner and the only member, delete the household
-      try {
-        await prisma.$transaction(async (prisma) => {
-          // Delete all related data first
-          await prisma.cleaningTask.deleteMany({
-            where: { householdId }
-          });
-          
-          await prisma.guestAnnouncement.deleteMany({
-            where: { householdId }
-          });
-          
-          await prisma.householdInvite.deleteMany({
-            where: { householdId }
-          });
-          
-          // Finally delete the household
-          await prisma.household.delete({
-            where: { id: householdId }
-          });
-        });
-      } catch (error) {
-        console.error('Error deleting household:', error);
-        return res.status(500).json({ error: 'Failed to delete household. Please try again.' });
-      }
-    } else {
-      // Otherwise, just remove the user from the household
-      try {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { householdId: null }
-        });
-      } catch (error) {
-        console.error('Error removing user from household:', error);
-        return res.status(500).json({ error: 'Failed to leave household. Please try again.' });
-      }
+      throw new AppError('Household owner cannot leave the household', 400);
     }
 
-    // Send success response
-    res.json({ message: 'Successfully left household' });
+    // Check if user is a member
+    const isMember = household.members.some(member => member.id === userId);
+    if (!isMember) {
+      throw new AppError('You are not a member of this household', 403);
+    }
+
+    // Remove user from household
+    await prisma.household.update({
+      where: { id: householdId },
+      data: {
+        members: {
+          disconnect: { id: userId }
+        }
+      }
+    });
+
+    res.json({ message: 'Successfully left the household' });
   } catch (error) {
-    console.error('Error leaving household:', error);
-    res.status(500).json({ error: 'An unexpected error occurred. Please try again.' });
+    if (error instanceof AppError) {
+      next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
+    } else {
+      next(new AppError('An unexpected error occurred while leaving household', 500));
+    }
   }
 };
 
-export const getHouseholdDetails = async (req: AuthRequest, res: Response) => {
+export const getHouseholdDetails = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { householdId } = req.params;
     const userId = req.user?.id;
@@ -317,9 +286,13 @@ export const getHouseholdDetails = async (req: AuthRequest, res: Response) => {
 
     res.json(household);
   } catch (error) {
-    if (error instanceof AppError) throw error;
-    console.error('Error fetching household details:', error);
-    throw new AppError('Error fetching household details', 500);
+    if (error instanceof AppError) {
+      next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
+    } else {
+      next(new AppError('An unexpected error occurred while fetching household details', 500));
+    }
   }
 };
 
@@ -521,7 +494,7 @@ export const kickMember = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const joinHousehold = async (req: AuthRequest, res: Response) => {
+export const joinHousehold = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { code } = req.body;
     const userId = req.user?.id;
@@ -530,13 +503,13 @@ export const joinHousehold = async (req: AuthRequest, res: Response) => {
       throw new AppError('Authentication required', 401);
     }
 
-    if (!code || typeof code !== 'string') {
+    if (!code) {
       throw new AppError('Household code is required', 400);
     }
 
-    // Find the household with the given code
+    // Find household by code
     const household = await prisma.household.findFirst({
-      where: { code: code.toUpperCase() },
+      where: { code },
       include: { members: true }
     });
 
@@ -544,54 +517,41 @@ export const joinHousehold = async (req: AuthRequest, res: Response) => {
       throw new AppError('Invalid household code', 404);
     }
 
-    // Check if user is already a member of this household
-    const isAlreadyMember = household.members.some(member => member.id === userId);
-    if (isAlreadyMember) {
-      return res.json({
-        id: household.id,
-        name: household.name,
-        code: household.code,
-        isPrivate: household.isPrivate
-      });
+    // Check if user is already a member
+    const isMember = household.members.some(member => member.id === userId);
+    if (isMember) {
+      throw new AppError('You are already a member of this household', 400);
     }
 
-    // Check if user is already a member of a different household
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { household: true }
-    });
-
-    if (user?.household) {
-      // Check if user is the owner of their current household
-      const currentHousehold = await prisma.household.findUnique({
-        where: { id: user.household.id }
-      });
-      
-      if (currentHousehold && currentHousehold.ownerId === userId) {
-        throw new AppError('You are the leader of another group. Please disband it first before joining a new group.', 400);
-      }
-      
-      throw new AppError('You are already a member of a household', 400);
-    }
-
-    // Add user to the household
-    await prisma.user.update({
-      where: { id: userId },
+    // Add user to household
+    const updatedHousehold = await prisma.household.update({
+      where: { id: household.id },
       data: {
-        household: { connect: { id: household.id } }
+        members: {
+          connect: { id: userId }
+        }
+      },
+      include: {
+        members: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            avatarUrl: true
+          }
+        }
       }
     });
 
-    res.json({
-      id: household.id,
-      name: household.name,
-      code: household.code,
-      isPrivate: household.isPrivate
-    });
+    res.json(updatedHousehold);
   } catch (error) {
-    if (error instanceof AppError) throw error;
-    console.error('Error joining household:', error);
-    throw new AppError('Error joining household', 500);
+    if (error instanceof AppError) {
+      next(error);
+    } else if (error instanceof Error) {
+      next(new AppError(error.message, 500));
+    } else {
+      next(new AppError('An unexpected error occurred while joining household', 500));
+    }
   }
 };
 
