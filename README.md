@@ -2,6 +2,9 @@
 
 RoomSync is a web application designed to help roommates coordinate tasks, manage shared spaces, and communicate effectively. It provides features for task management, guest announcements, quiet time scheduling, and more.
 
+## Developers
+Zachary Picard, Goncalo Felix, Tony Morais, Dylan Ricci
+
 ## 🚀 Features
 
 - **User Authentication**: Secure login and registration
